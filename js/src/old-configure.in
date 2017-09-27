@@ -858,11 +858,7 @@ fi
 
 dnl Configure JIT support
 
-case "$CPU_ARCH" in
-x86|x86_64|arm|aarch64|mips*)
-    ENABLE_ION=1
-    ;;
-esac
+ENABLE_ION=
 
 if test "$HAVE_64BIT_BUILD" ; then
     AC_DEFINE(JS_PUNBOX64)
