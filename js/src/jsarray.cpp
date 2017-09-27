@@ -458,7 +458,7 @@ js::GetElements(JSContext* cx, HandleObject aobj, uint32_t length, Value* vp)
     if (aobj->is<TypedArrayObject>()) {
         TypedArrayObject* typedArray = &aobj->as<TypedArrayObject>();
         if (typedArray->length() == length) {
-            typedArray->getElements(vp);
+            typedArray->getElements(cx, vp);
             return true;
         }
     }
@@ -1270,7 +1270,7 @@ ArrayJoinDenseKernel(JSContext* cx, SeparatorOp sepOp, HandleObject obj, uint64_
         } else if (elem.isBoolean()) {
             if (!BooleanToStringBuffer(elem.toBoolean(), sb))
                 return DenseElementResult::Failure;
-        } else if (elem.isObject() || elem.isSymbol()) {
+        } else if (elem.isObject() || elem.isSymbol() || elem.isBigInt()) {
             /*
              * Object stringifying could modify the initialized length or make
              * the array sparse. Delegate it to a separate loop to keep this

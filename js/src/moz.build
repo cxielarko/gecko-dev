@@ -406,6 +406,7 @@ UNIFIED_SOURCES += [
 # vm/Interpreter.cpp is gigantic and destroys incremental build times for any
 # files unlucky enough to be unified with it.
 SOURCES += [
+    'builtin/BigIntObject.cpp',
     'builtin/RegExp.cpp',
     'frontend/Parser.cpp',
     'gc/StoreBuffer.cpp',
@@ -414,6 +415,7 @@ SOURCES += [
     'jsdtoa.cpp',
     'jsmath.cpp',
     'jsutil.cpp',
+    'vm/BigInt.cpp',
     'vm/Interpreter.cpp',
 ]
 
@@ -649,6 +651,9 @@ if CONFIG['NIGHTLY_BUILD']:
 if CONFIG['MOZ_DEBUG'] or CONFIG['NIGHTLY_BUILD']:
     DEFINES['JS_CACHEIR_SPEW'] = True
 
+if CONFIG['NIGHTLY_BUILD']:
+    DEFINES['ENABLE_BIGINT'] = True
+
 # Also set in shell/moz.build
 DEFINES['ENABLE_SHARED_ARRAY_BUFFER'] = True
 
@@ -700,6 +705,7 @@ selfhosted.inputs = [
     'builtin/TypedObjectConstants.h',
     'builtin/SelfHostingDefines.h',
     'builtin/Utilities.js',
+    'builtin/BigInt.js',
     'builtin/Array.js',
     'builtin/AsyncIteration.js',
     'builtin/Classes.js',

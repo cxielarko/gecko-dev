@@ -165,6 +165,9 @@ js::ValueToStringBufferSlow(JSContext* cx, const Value& arg, StringBuffer& sb)
         JS_ReportErrorNumberASCII(cx, GetErrorMessage, nullptr, JSMSG_SYMBOL_TO_STRING);
         return false;
     }
+    if (v.isBigInt()) {
+        return sb.append(v.toBigInt()->toString(cx));
+    }
     MOZ_ASSERT(v.isUndefined());
     return sb.append(cx->names().undefined);
 }

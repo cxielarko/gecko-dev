@@ -252,6 +252,21 @@ PreprocessValue(JSContext* cx, HandleObject holder, KeyType key, MutableHandleVa
             if (!js::Call(cx, toJSON, vp, arg0, vp))
                 return false;
         }
+    } else if (vp.isBigInt()) {
+        RootedValue toJSON(cx);
+        RootedObject obj(cx, PrimitiveToObject(cx, vp));
+        if (!GetProperty(cx, obj, obj, cx->names().toJSON, &toJSON))
+            return false;
+
+        if (IsCallable(toJSON)) {
+            keyStr = KeyStringifier<KeyType>::toString(cx, key);
+            if (!keyStr)
+                return false;
+
+            RootedValue arg0(cx, StringValue(keyStr));
+            if (!js::Call(cx, toJSON, vp, arg0, vp))
+                return false;
+        }
     }
 
     /* Step 3. */
@@ -289,6 +304,10 @@ PreprocessValue(JSContext* cx, HandleObject holder, KeyType key, MutableHandleVa
         } else if (cls == ESClass::Boolean) {
             if (!Unbox(cx, obj, vp))
                 return false;
+        }
+
+        if (obj->is<BigIntObject>()) {
+            vp.setBigInt(obj->as<BigIntObject>().unbox());
         }
     }
 
@@ -584,6 +603,11 @@ Str(JSContext* cx, const Value& v, StringifyContext* scx)
         }
 
         return NumberValueToStringBuffer(cx, v, scx->sb);
+    }
+
+    if (v.isBigInt()) {
+        JS_ReportErrorNumberASCII(cx, GetErrorMessage, nullptr, JSMSG_BIGINT_NOT_SERIALIZABLE);
+        return false;
     }
 
     /* Step 10. */

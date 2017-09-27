@@ -105,6 +105,7 @@ enum class AllocKind {
     FAT_INLINE_ATOM,
     ATOM,
     SYMBOL,
+    BIGINT,
     JITCODE,
     SCOPE,
     REGEXP_SHARED,
@@ -145,6 +146,7 @@ enum class AllocKind {
     D(FAT_INLINE_ATOM,     String,        js::FatInlineAtom, js::FatInlineAtom) \
     D(ATOM,                String,        js::NormalAtom,    js::NormalAtom) \
     D(SYMBOL,              Symbol,        JS::Symbol,        JS::Symbol) \
+    D(BIGINT,              BigInt,        BigInt,            BigInt) \
     D(JITCODE,             JitCode,       js::jit::JitCode,  js::jit::JitCode) \
     D(SCOPE,               Scope,         js::Scope,         js::Scope) \
     D(REGEXP_SHARED,       RegExpShared,  js::RegExpShared,  js::RegExpShared)

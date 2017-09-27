@@ -384,6 +384,7 @@ ContainsHoistedDeclaration(JSContext* cx, ParseNode* node, bool* result)
       case PNK_THIS:
       case PNK_ELISION:
       case PNK_NUMBER:
+      case PNK_BIGINT:
       case PNK_NEW:
       case PNK_GENERATOR:
       case PNK_GENEXP:
@@ -1911,6 +1912,9 @@ Fold(JSContext* cx, ParseNode** pnp, Parser<FullParseHandler, char16_t>& parser,
 
       case PNK_NAME:
         return FoldName(cx, pn, parser, inGenexpLambda);
+
+      case PNK_BIGINT:
+        return true;
 
       case PNK_LIMIT: // invalid sentinel value
         MOZ_CRASH("invalid node kind");

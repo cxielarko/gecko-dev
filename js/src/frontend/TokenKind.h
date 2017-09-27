@@ -73,6 +73,7 @@
     macro(NAME,         "identifier") \
     macro(NUMBER,       "numeric literal") \
     macro(STRING,       "string literal") \
+    macro(BIGINT,       "BigInt literal") \
     \
     /* start of template literal with substitutions */ \
     macro(TEMPLATE_HEAD,    "'${'") \

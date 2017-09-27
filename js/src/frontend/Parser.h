@@ -942,6 +942,10 @@ class Parser final : public ParserBase, private JS::AutoGCRooter
         return handler.newNumber(tok.number(), tok.decimalPoint(), tok.pos);
     }
 
+    Node newBigInt(const Token& tok) {
+        return handler.newBigInt(tok.bigint(), tok.pos);
+    }
+
     static Node null() { return ParseHandler::null(); }
 
     JSAtom* prefixAccessorName(PropertyType propType, HandleAtom propAtom);

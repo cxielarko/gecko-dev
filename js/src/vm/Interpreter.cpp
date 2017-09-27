@@ -40,10 +40,12 @@
 #include "jit/IonAnalysis.h"
 #include "vm/AsyncFunction.h"
 #include "vm/AsyncIteration.h"
+#include "vm/BigInt.h"
 #include "vm/Debugger.h"
 #include "vm/GeneratorObject.h"
 #include "vm/Opcodes.h"
 #include "vm/Scope.h"
+#include "vm/SelfHosting.h"
 #include "vm/Shape.h"
 #include "vm/Stopwatch.h"
 #include "vm/TraceLogging.h"
@@ -814,6 +816,9 @@ EqualGivenSameType(JSContext* cx, HandleValue lval, HandleValue rval, bool* equa
         *equal = (lval.toDouble() == rval.toDouble());
         return true;
     }
+    if (lval.isBigInt()) {
+        return EqualBigInts(lval.toBigInt(), rval.toBigInt(), equal);
+    }
     if (lval.isGCThing()) {  // objects or symbols
         *equal = (lval.toGCThing() == rval.toGCThing());
         return true;
@@ -893,6 +898,17 @@ js::LooselyEqual(JSContext* cx, HandleValue lval, HandleValue rval, bool* result
         return true;
     }
 
+    if ((lval.isBigInt() && rval.isString()) || (lval.isString() && rval.isBigInt())) {
+        RootedValue rv(cx);
+        if (!CallSelfHostedBinaryOperator(cx, "BigIntCompareString", lval, rval, &rv))
+            return false;
+        int32_t r;
+        if (!ToInt32(cx, rv, &r))
+            return false;
+        *result = (r == 0);
+        return true;
+    }
+
     // Step 8.
     if (lval.isBoolean())
         return LooselyEqualBooleanAndOther(cx, lval, rval, result);
@@ -902,7 +918,7 @@ js::LooselyEqual(JSContext* cx, HandleValue lval, HandleValue rval, bool* result
         return LooselyEqualBooleanAndOther(cx, rval, lval, result);
 
     // Step 10.
-    if ((lval.isString() || lval.isNumber() || lval.isSymbol()) && rval.isObject()) {
+    if ((lval.isString() || lval.isNumber() || lval.isSymbol() || lval.isBigInt()) && rval.isObject()) {
         RootedValue rvalue(cx, rval);
         if (!ToPrimitive(cx, &rvalue))
             return false;
@@ -910,11 +926,22 @@ js::LooselyEqual(JSContext* cx, HandleValue lval, HandleValue rval, bool* result
     }
 
     // Step 11.
-    if (lval.isObject() && (rval.isString() || rval.isNumber() || rval.isSymbol())) {
+    if (lval.isObject() && (rval.isString() || rval.isNumber() || rval.isSymbol() || rval.isBigInt())) {
         RootedValue lvalue(cx, lval);
         if (!ToPrimitive(cx, &lvalue))
             return false;
         return LooselyEqual(cx, lvalue, rval, result);
+    }
+
+    if ((lval.isBigInt() && rval.isNumber()) || (lval.isNumber() && rval.isBigInt())) {
+        RootedValue rv(cx);
+        if (!CallSelfHostedBinaryOperator(cx, "BigIntCompareNumber", lval, rval, &rv))
+            return false;
+        int32_t r;
+        if (!ToInt32(cx, rv, &r))
+            return false;
+        *result = (r == 0);
+        return true;
     }
 
     // Step 12.
@@ -992,6 +1019,8 @@ js::TypeOfValue(const Value& v)
         return TypeOfObject(&v.toObject());
     if (v.isBoolean())
         return JSTYPE_BOOLEAN;
+    if (v.isBigInt())
+        return JSTYPE_BIGINT;
     MOZ_ASSERT(v.isSymbol());
     return JSTYPE_SYMBOL;
 }
@@ -1546,47 +1575,60 @@ AddOperation(JSContext* cx, MutableHandleValue lhs, MutableHandleValue rhs, Muta
         }
         res.setString(str);
     } else {
-        double l, r;
-        if (!ToNumber(cx, lhs, &l) || !ToNumber(cx, rhs, &r))
+        if (!ToNumeric(cx, lhs) || !ToNumeric(cx, rhs)) {
             return false;
-        res.setNumber(l + r);
+        }
+        if (lhs.isNumber() && rhs.isNumber()) {
+            res.setNumber(lhs.toNumber() + rhs.toNumber());
+        } else {
+            return TryBigIntBinaryOperator(cx, "BigIntAdd", lhs, rhs, res);
+        }
     }
 
     return true;
 }
 
 static MOZ_ALWAYS_INLINE bool
-SubOperation(JSContext* cx, HandleValue lhs, HandleValue rhs, MutableHandleValue res)
+SubOperation(JSContext* cx, MutableHandleValue lhs, MutableHandleValue rhs, MutableHandleValue res)
 {
-    double d1, d2;
-    if (!ToNumber(cx, lhs, &d1) || !ToNumber(cx, rhs, &d2))
+    if (!ToNumeric(cx, lhs) || !ToNumeric(cx, rhs)) {
         return false;
-    res.setNumber(d1 - d2);
-    return true;
+    }
+    if (lhs.isNumber() && rhs.isNumber()) {
+        res.setNumber(lhs.toNumber() - rhs.toNumber());
+        return true;
+    }
+    return TryBigIntBinaryOperator(cx, "BigIntSub", lhs, rhs, res);
 }
 
 static MOZ_ALWAYS_INLINE bool
-MulOperation(JSContext* cx, HandleValue lhs, HandleValue rhs, MutableHandleValue res)
+MulOperation(JSContext* cx, MutableHandleValue lhs, MutableHandleValue rhs, MutableHandleValue res)
 {
-    double d1, d2;
-    if (!ToNumber(cx, lhs, &d1) || !ToNumber(cx, rhs, &d2))
+    if (!ToNumeric(cx, lhs) || !ToNumeric(cx, rhs)) {
         return false;
-    res.setNumber(d1 * d2);
-    return true;
+    }
+    if (lhs.isNumber() && rhs.isNumber()) {
+        res.setNumber(lhs.toNumber() * rhs.toNumber());
+        return true;
+    }
+    return TryBigIntBinaryOperator(cx, "BigIntMul", lhs, rhs, res);
 }
 
 static MOZ_ALWAYS_INLINE bool
-DivOperation(JSContext* cx, HandleValue lhs, HandleValue rhs, MutableHandleValue res)
+DivOperation(JSContext* cx, MutableHandleValue lhs, MutableHandleValue rhs, MutableHandleValue res)
 {
-    double d1, d2;
-    if (!ToNumber(cx, lhs, &d1) || !ToNumber(cx, rhs, &d2))
+    if (!ToNumeric(cx, lhs) || !ToNumeric(cx, rhs)) {
         return false;
-    res.setNumber(NumberDiv(d1, d2));
-    return true;
+    }
+    if (lhs.isNumber() && rhs.isNumber()) {
+        res.setNumber(NumberDiv(lhs.toNumber(), rhs.toNumber()));
+        return true;
+    }
+    return TryBigIntBinaryOperator(cx, "BigIntDiv", lhs, rhs, res);
 }
 
 static MOZ_ALWAYS_INLINE bool
-ModOperation(JSContext* cx, HandleValue lhs, HandleValue rhs, MutableHandleValue res)
+ModOperation(JSContext* cx, MutableHandleValue lhs, MutableHandleValue rhs, MutableHandleValue res)
 {
     int32_t l, r;
     if (lhs.isInt32() && rhs.isInt32() &&
@@ -1596,12 +1638,26 @@ ModOperation(JSContext* cx, HandleValue lhs, HandleValue rhs, MutableHandleValue
         return true;
     }
 
-    double d1, d2;
-    if (!ToNumber(cx, lhs, &d1) || !ToNumber(cx, rhs, &d2))
+    if (!ToNumeric(cx, lhs) || !ToNumeric(cx, rhs)) {
         return false;
+    }
+    if (lhs.isNumber() && rhs.isNumber()) {
+        res.setNumber(NumberMod(lhs.toNumber(), rhs.toNumber()));
+        return true;
+    }
+    return TryBigIntBinaryOperator(cx, "BigIntMod", lhs, rhs, res);
+}
 
-    res.setNumber(NumberMod(d1, d2));
-    return true;
+static MOZ_ALWAYS_INLINE bool
+PowOperation(JSContext* cx, MutableHandleValue lhs, MutableHandleValue rhs, MutableHandleValue res)
+{
+    if (!ToNumeric(cx, lhs) || !ToNumeric(cx, rhs)) {
+        return false;
+    }
+    if (lhs.isNumber() && rhs.isNumber()) {
+        return math_pow_handle(cx, lhs, rhs, res);
+    }
+    return TryBigIntBinaryOperator(cx, "BigIntPow", lhs, rhs, res);
 }
 
 static MOZ_ALWAYS_INLINE bool
@@ -2389,28 +2445,34 @@ CASE(JSOP_BINDVAR)
 }
 END_CASE(JSOP_BINDVAR)
 
-#define BITWISE_OP(OP)                                                        \
+#define BITWISE_OP(OP, OPNAME)                                                \
     JS_BEGIN_MACRO                                                            \
-        int32_t i, j;                                                         \
-        if (!ToInt32(cx, REGS.stackHandleAt(-2), &i))                         \
+        MutableHandleValue lhs = REGS.stackHandleAt(-2);                      \
+        MutableHandleValue rhs = REGS.stackHandleAt(-1);                      \
+        MutableHandleValue res = REGS.stackHandleAt(-2);                      \
+        if (!ToInt32OrBigInt(cx, lhs) || !ToInt32OrBigInt(cx, rhs)) {         \
             goto error;                                                       \
-        if (!ToInt32(cx, REGS.stackHandleAt(-1), &j))                         \
-            goto error;                                                       \
-        i = i OP j;                                                           \
+        }                                                                     \
+        if (lhs.isInt32() && rhs.isInt32()) {                                 \
+            res.setInt32(lhs.toInt32() OP rhs.toInt32());                     \
+        } else {                                                              \
+            if (!TryBigIntBinaryOperator(cx, OPNAME, lhs, rhs, res)) {        \
+                goto error;                                                   \
+            }                                                                 \
+        }                                                                     \
         REGS.sp--;                                                            \
-        REGS.sp[-1].setInt32(i);                                              \
     JS_END_MACRO
 
 CASE(JSOP_BITOR)
-    BITWISE_OP(|);
+    BITWISE_OP(|, "BigIntBitOr");
 END_CASE(JSOP_BITOR)
 
 CASE(JSOP_BITXOR)
-    BITWISE_OP(^);
+    BITWISE_OP(^, "BigIntBitXor");
 END_CASE(JSOP_BITXOR)
 
 CASE(JSOP_BITAND)
-    BITWISE_OP(&);
+    BITWISE_OP(&, "BigIntBitAnd");
 END_CASE(JSOP_BITAND)
 
 #undef BITWISE_OP
@@ -2517,24 +2579,30 @@ CASE(JSOP_GE)
 }
 END_CASE(JSOP_GE)
 
-#define SIGNED_SHIFT_OP(OP, TYPE)                                             \
+#define SIGNED_SHIFT_OP(OP, TYPE, OPNAME)                                     \
     JS_BEGIN_MACRO                                                            \
-        int32_t i, j;                                                         \
-        if (!ToInt32(cx, REGS.stackHandleAt(-2), &i))                         \
+        MutableHandleValue lhs = REGS.stackHandleAt(-2);                      \
+        MutableHandleValue rhs = REGS.stackHandleAt(-1);                      \
+        MutableHandleValue res = REGS.stackHandleAt(-2);                      \
+        if (!ToInt32OrBigInt(cx, lhs) || !ToInt32OrBigInt(cx, rhs)) {         \
             goto error;                                                       \
-        if (!ToInt32(cx, REGS.stackHandleAt(-1), &j))                         \
-            goto error;                                                       \
-        i = TYPE(i) OP (j & 31);                                              \
+        }                                                                     \
+        if (lhs.isInt32() && rhs.isInt32()) {                                 \
+            res.setInt32(TYPE(lhs.toInt32()) OP (rhs.toInt32() & 31));        \
+        } else {                                                              \
+            if (!TryBigIntBinaryOperator(cx, OPNAME, lhs, rhs, res)) {        \
+                goto error;                                                   \
+            }                                                                 \
+        }                                                                     \
         REGS.sp--;                                                            \
-        REGS.sp[-1].setInt32(i);                                              \
-    JS_END_MACRO
+     JS_END_MACRO
 
 CASE(JSOP_LSH)
-    SIGNED_SHIFT_OP(<<, uint32_t);
+    SIGNED_SHIFT_OP(<<, uint32_t, "BigIntLsh");
 END_CASE(JSOP_LSH)
 
 CASE(JSOP_RSH)
-    SIGNED_SHIFT_OP(>>, int32_t);
+    SIGNED_SHIFT_OP(>>, int32_t, "BigIntRsh");
 END_CASE(JSOP_RSH)
 
 #undef SIGNED_SHIFT_OP
@@ -2563,8 +2631,8 @@ END_CASE(JSOP_ADD)
 
 CASE(JSOP_SUB)
 {
-    ReservedRooted<Value> lval(&rootValue0, REGS.sp[-2]);
-    ReservedRooted<Value> rval(&rootValue1, REGS.sp[-1]);
+    MutableHandleValue lval = REGS.stackHandleAt(-2);
+    MutableHandleValue rval = REGS.stackHandleAt(-1);
     MutableHandleValue res = REGS.stackHandleAt(-2);
     if (!SubOperation(cx, lval, rval, res))
         goto error;
@@ -2574,8 +2642,8 @@ END_CASE(JSOP_SUB)
 
 CASE(JSOP_MUL)
 {
-    ReservedRooted<Value> lval(&rootValue0, REGS.sp[-2]);
-    ReservedRooted<Value> rval(&rootValue1, REGS.sp[-1]);
+    MutableHandleValue lval = REGS.stackHandleAt(-2);
+    MutableHandleValue rval = REGS.stackHandleAt(-1);
     MutableHandleValue res = REGS.stackHandleAt(-2);
     if (!MulOperation(cx, lval, rval, res))
         goto error;
@@ -2585,8 +2653,8 @@ END_CASE(JSOP_MUL)
 
 CASE(JSOP_DIV)
 {
-    ReservedRooted<Value> lval(&rootValue0, REGS.sp[-2]);
-    ReservedRooted<Value> rval(&rootValue1, REGS.sp[-1]);
+    MutableHandleValue lval = REGS.stackHandleAt(-2);
+    MutableHandleValue rval = REGS.stackHandleAt(-1);
     MutableHandleValue res = REGS.stackHandleAt(-2);
     if (!DivOperation(cx, lval, rval, res))
         goto error;
@@ -2596,8 +2664,8 @@ END_CASE(JSOP_DIV)
 
 CASE(JSOP_MOD)
 {
-    ReservedRooted<Value> lval(&rootValue0, REGS.sp[-2]);
-    ReservedRooted<Value> rval(&rootValue1, REGS.sp[-1]);
+    MutableHandleValue lval = REGS.stackHandleAt(-2);
+    MutableHandleValue rval = REGS.stackHandleAt(-1);
     MutableHandleValue res = REGS.stackHandleAt(-2);
     if (!ModOperation(cx, lval, rval, res))
         goto error;
@@ -2607,10 +2675,10 @@ END_CASE(JSOP_MOD)
 
 CASE(JSOP_POW)
 {
-    ReservedRooted<Value> lval(&rootValue0, REGS.sp[-2]);
-    ReservedRooted<Value> rval(&rootValue1, REGS.sp[-1]);
+    MutableHandleValue lval = REGS.stackHandleAt(-2);
+    MutableHandleValue rval = REGS.stackHandleAt(-1);
     MutableHandleValue res = REGS.stackHandleAt(-2);
-    if (!math_pow_handle(cx, lval, rval, res))
+    if (!PowOperation(cx, lval, rval, res))
         goto error;
     REGS.sp--;
 }
@@ -2626,11 +2694,10 @@ END_CASE(JSOP_NOT)
 
 CASE(JSOP_BITNOT)
 {
-    int32_t i;
-    HandleValue value = REGS.stackHandleAt(-1);
-    if (!BitNot(cx, value, &i))
+    MutableHandleValue value = REGS.stackHandleAt(-1);
+    MutableHandleValue res = REGS.stackHandleAt(-1);
+    if (!BitNot(cx, value, res))
         goto error;
-    REGS.sp[-1].setInt32(i);
 }
 END_CASE(JSOP_BITNOT)
 
@@ -2647,6 +2714,11 @@ CASE(JSOP_POS)
     if (!ToNumber(cx, REGS.stackHandleAt(-1)))
         goto error;
 END_CASE(JSOP_POS)
+
+CASE(JSOP_NUMERIC_POS)
+if (!ToNumeric(cx, REGS.stackHandleAt(-1)))
+    goto error;
+END_CASE(JSOP_NUMERIC_POS)
 
 CASE(JSOP_DELNAME)
 {
@@ -3348,6 +3420,19 @@ END_CASE(JSOP_ZERO)
 CASE(JSOP_ONE)
     PUSH_INT32(1);
 END_CASE(JSOP_ONE)
+
+CASE(JSOP_NUMERIC_ONE)
+if (REGS.sp[-1].isBigInt()) {
+    FixedInvokeArgs<0> args(cx);
+    RootedValue nullv(cx, NullValue());
+    RootedValue res(cx);
+    if (!CallSelfHostedFunction(cx, "MakeOneBigInt", nullv, args, &res))
+        goto error;
+    REGS.sp++->setBigInt(res.toBigInt());
+} else {
+    PUSH_INT32(1);
+}
+END_CASE(JSOP_NUMERIC_ONE)
 
 CASE(JSOP_NULL)
     PUSH_NULL();
@@ -4297,6 +4382,11 @@ CASE(JSOP_IS_CONSTRUCTING)
     PUSH_MAGIC(JS_IS_CONSTRUCTING);
 END_CASE(JSOP_IS_CONSTRUCTING)
 
+CASE(JSOP_BIGINT)
+    BigInt* bigint = script->getConst(GET_UINT32_INDEX(REGS.pc)).toBigInt();
+    REGS.sp++->setBigInt(bigint);
+END_CASE(JSOP_BIGINT)
+
 DEFAULT()
 {
     char numBuf[12];
@@ -4399,7 +4489,7 @@ js::GetProperty(JSContext* cx, HandleValue v, HandlePropertyName name, MutableHa
 
     // Optimize common cases like (2).toString() or "foo".valueOf() to not
     // create a wrapper object.
-    if (v.isPrimitive() && !v.isNullOrUndefined()) {
+    if (v.isPrimitive() && !v.isNullOrUndefined() && !v.isBigInt()) {
         NativeObject* proto;
         if (v.isNumber()) {
             proto = GlobalObject::getOrCreateNumberPrototype(cx, cx->global());

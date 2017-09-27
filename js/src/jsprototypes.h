@@ -60,6 +60,12 @@
 #define IF_SAB(real,imaginary) imaginary
 #endif
 
+#ifdef ENABLE_BIGINT
+#define IF_BIGINT(real,imaginary) real
+#else
+#define IF_BIGINT(real,imaginary) imaginary
+#endif
+
 #define JS_FOR_PROTOTYPES(real,imaginary) \
     imaginary(Null,             InitNullClass,          dummy) \
     real(Object,                InitViaClassSpec,       OCLASP(Plain)) \
@@ -93,9 +99,12 @@
     real(Uint16Array,           InitViaClassSpec,       TYPED_ARRAY_CLASP(Uint16)) \
     real(Int32Array,            InitViaClassSpec,       TYPED_ARRAY_CLASP(Int32)) \
     real(Uint32Array,           InitViaClassSpec,       TYPED_ARRAY_CLASP(Uint32)) \
-    real(Float32Array,          InitViaClassSpec,       TYPED_ARRAY_CLASP(Float32)) \
+    real(BigInt64Array,         InitViaClassSpec,       TYPED_ARRAY_CLASP(BigInt64)) \
+    real(BigUint64Array,        InitViaClassSpec,       TYPED_ARRAY_CLASP(BigUint64)) \
+    real(Float32Array,          InitViaClassSpec,       TYPED_ARRAY_CLASP(Float32))     \
     real(Float64Array,          InitViaClassSpec,       TYPED_ARRAY_CLASP(Float64)) \
     real(Uint8ClampedArray,     InitViaClassSpec,       TYPED_ARRAY_CLASP(Uint8Clamped)) \
+IF_BIGINT(real,imaginary)(BigInt, InitBigIntClass, OCLASP(BigInt)) \
     real(Proxy,                 InitProxyClass,         js::ProxyClassPtr) \
     real(WeakMap,               InitWeakMapClass,       OCLASP(WeakMap)) \
     real(Map,                   InitViaClassSpec,       OCLASP(Map)) \

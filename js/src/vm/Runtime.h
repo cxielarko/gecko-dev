@@ -54,6 +54,7 @@
 #include "vm/Stack.h"
 #include "vm/Stopwatch.h"
 #include "vm/Symbol.h"
+#include "vm/BigInt.h"
 
 #ifdef _MSC_VER
 #pragma warning(push)

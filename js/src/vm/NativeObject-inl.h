@@ -383,10 +383,10 @@ NativeObject::ensureDenseElements(JSContext* cx, uint32_t index, uint32_t extra)
 }
 
 inline Value
-NativeObject::getDenseOrTypedArrayElement(uint32_t idx)
+NativeObject::getDenseOrTypedArrayElement(JSContext* cx, uint32_t idx)
 {
     if (is<TypedArrayObject>())
-        return as<TypedArrayObject>().getElement(idx);
+        return as<TypedArrayObject>().getElement(cx, idx);
     return getDenseElement(idx);
 }
 

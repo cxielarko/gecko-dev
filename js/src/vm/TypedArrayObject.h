@@ -23,6 +23,8 @@
     macro(uint16_t, Uint16) \
     macro(int32_t, Int32) \
     macro(uint32_t, Uint32) \
+    macro(int64_t, BigInt64) \
+    macro(uint64_t, BigUint64) \
     macro(float, Float32) \
     macro(double, Float64) \
     macro(uint8_clamped, Uint8Clamped)
@@ -179,14 +181,14 @@ class TypedArrayObject : public NativeObject
     void assertZeroLengthArrayData() const {};
 #endif
 
-    Value getElement(uint32_t index);
-    static void setElement(TypedArrayObject& obj, uint32_t index, double d);
+    Value getElement(JSContext* cx, uint32_t index);
+    static bool setElement(JSContext* cx, TypedArrayObject& obj, uint32_t index, const Value& v);
 
     /*
      * Copy all elements from this typed array to vp. vp must point to rooted
      * memory.
      */
-    void getElements(Value* vp);
+    void getElements(JSContext* cx, Value* vp);
 
     void notifyBufferDetached(JSContext* cx, void* newData);
 
@@ -399,6 +401,8 @@ TypedArrayShift(Scalar::Type viewType)
       case Scalar::Uint32:
       case Scalar::Float32:
         return 2;
+      case Scalar::BigInt64:
+      case Scalar::BigUint64:
       case Scalar::Int64:
       case Scalar::Float64:
         return 3;

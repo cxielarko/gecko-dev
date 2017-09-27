@@ -28,6 +28,7 @@
 #include "builtin/SelfHostingDefines.h"
 #include "builtin/Stream.h"
 #include "builtin/SymbolObject.h"
+#include "builtin/BigIntObject.h"
 #include "builtin/TypedObject.h"
 #include "builtin/WeakMapObject.h"
 #include "builtin/WeakSetObject.h"
@@ -519,7 +520,10 @@ GlobalObject::initSelfHostingBuiltins(JSContext* cx, Handle<GlobalObject*> globa
     return InitBareBuiltinCtor(cx, global, JSProto_Array) &&
            InitBareBuiltinCtor(cx, global, JSProto_TypedArray) &&
            InitBareBuiltinCtor(cx, global, JSProto_Uint8Array) &&
+           InitBareBuiltinCtor(cx, global, JSProto_Uint16Array) &&
            InitBareBuiltinCtor(cx, global, JSProto_Int32Array) &&
+           InitBareBuiltinCtor(cx, global, JSProto_Uint32Array) &&
+           InitBareBuiltinCtor(cx, global, JSProto_Float64Array) &&
            InitBareSymbolCtor(cx, global) &&
            InitBareWeakMapCtor(cx, global) &&
            InitStopIterationClass(cx, global) &&

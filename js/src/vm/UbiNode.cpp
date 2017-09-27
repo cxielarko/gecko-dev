@@ -31,6 +31,7 @@
 #include "vm/Shape.h"
 #include "vm/String.h"
 #include "vm/Symbol.h"
+#include "vm/BigInt.h"
 
 #include "jsobjinlines.h"
 #include "vm/Debugger-inl.h"
@@ -203,6 +204,8 @@ Node::exposeToJS() const
         v.setString(as<JSString>());
     } else if (is<JS::Symbol>()) {
         v.setSymbol(as<JS::Symbol>());
+    } else if (is<BigInt>()) {
+        v.setBigInt(as<BigInt>());
     } else {
         v.setUndefined();
     }
@@ -315,6 +318,7 @@ template JS::Zone* TracerConcrete<js::ObjectGroup>::zone() const;
 template JS::Zone* TracerConcrete<js::RegExpShared>::zone() const;
 template JS::Zone* TracerConcrete<js::Scope>::zone() const;
 template JS::Zone* TracerConcrete<JS::Symbol>::zone() const;
+template JS::Zone* TracerConcrete<BigInt>::zone() const;
 template JS::Zone* TracerConcrete<JSString>::zone() const;
 
 template<typename Referent>
@@ -338,6 +342,7 @@ template UniquePtr<EdgeRange> TracerConcrete<js::ObjectGroup>::edges(JSContext* 
 template UniquePtr<EdgeRange> TracerConcrete<js::RegExpShared>::edges(JSContext* cx, bool wantNames) const;
 template UniquePtr<EdgeRange> TracerConcrete<js::Scope>::edges(JSContext* cx, bool wantNames) const;
 template UniquePtr<EdgeRange> TracerConcrete<JS::Symbol>::edges(JSContext* cx, bool wantNames) const;
+template UniquePtr<EdgeRange> TracerConcrete<BigInt>::edges(JSContext* cx, bool wantNames) const;
 template UniquePtr<EdgeRange> TracerConcrete<JSString>::edges(JSContext* cx, bool wantNames) const;
 
 template<typename Referent>
@@ -393,6 +398,7 @@ Concrete<JSObject>::jsObjectConstructorName(JSContext* cx, UniqueTwoByteChars& o
 }
 
 const char16_t Concrete<JS::Symbol>::concreteTypeName[] = u"JS::Symbol";
+const char16_t Concrete<BigInt>::concreteTypeName[] = u"JS::BigInt";
 const char16_t Concrete<JSScript>::concreteTypeName[] = u"JSScript";
 const char16_t Concrete<js::LazyScript>::concreteTypeName[] = u"js::LazyScript";
 const char16_t Concrete<js::jit::JitCode>::concreteTypeName[] = u"js::jit::JitCode";

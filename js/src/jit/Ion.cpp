@@ -2340,6 +2340,11 @@ CheckScript(JSContext* cx, JSScript* script, bool osr)
         return false;
     }
 
+    if (script->hasBigIntType(cx)) {
+        TrackAndSpewIonAbort(cx, script, "contains BigInt type");
+        return false;
+    }
+
     return true;
 }
 

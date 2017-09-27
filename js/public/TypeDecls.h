@@ -36,6 +36,7 @@ namespace JS {
 
 typedef unsigned char Latin1Char;
 
+class BigInt;
 class Symbol;
 class Value;
 class Realm;
@@ -50,6 +51,7 @@ typedef Handle<JSObject*>   HandleObject;
 typedef Handle<JSScript*>   HandleScript;
 typedef Handle<JSString*>   HandleString;
 typedef Handle<JS::Symbol*> HandleSymbol;
+typedef Handle<JS::BigInt*> HandleBigInt;
 typedef Handle<Value>       HandleValue;
 
 typedef MutableHandle<JSFunction*> MutableHandleFunction;
@@ -58,6 +60,7 @@ typedef MutableHandle<JSObject*>   MutableHandleObject;
 typedef MutableHandle<JSScript*>   MutableHandleScript;
 typedef MutableHandle<JSString*>   MutableHandleString;
 typedef MutableHandle<JS::Symbol*> MutableHandleSymbol;
+typedef MutableHandle<JS::BigInt*> MutableHandleBigInt;
 typedef MutableHandle<Value>       MutableHandleValue;
 
 typedef Rooted<JSObject*>       RootedObject;
@@ -65,6 +68,7 @@ typedef Rooted<JSFunction*>     RootedFunction;
 typedef Rooted<JSScript*>       RootedScript;
 typedef Rooted<JSString*>       RootedString;
 typedef Rooted<JS::Symbol*>     RootedSymbol;
+typedef Rooted<JS::BigInt*>     RootedBigInt;
 typedef Rooted<jsid>            RootedId;
 typedef Rooted<JS::Value>       RootedValue;
 
@@ -74,6 +78,7 @@ typedef PersistentRooted<JSObject*>   PersistentRootedObject;
 typedef PersistentRooted<JSScript*>   PersistentRootedScript;
 typedef PersistentRooted<JSString*>   PersistentRootedString;
 typedef PersistentRooted<JS::Symbol*> PersistentRootedSymbol;
+typedef PersistentRooted<JS::BigInt*> PersistentRootedBigInt;
 typedef PersistentRooted<Value>       PersistentRootedValue;
 
 } // namespace JS

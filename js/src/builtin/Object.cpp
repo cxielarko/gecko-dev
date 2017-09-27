@@ -1267,7 +1267,7 @@ EnumerableOwnProperties(JSContext* cx, const JS::CallArgs& args, EnumerableOwnPr
         // Step 4.a.i.
         if (nobj) {
             if (JSID_IS_INT(id) && nobj->containsDenseElement(JSID_TO_INT(id))) {
-                value = nobj->getDenseOrTypedArrayElement(JSID_TO_INT(id));
+                value = nobj->getDenseOrTypedArrayElement(cx, JSID_TO_INT(id));
             } else {
                 shape = nobj->lookup(cx, id);
                 if (!shape || !(shape->attributes() & JSPROP_ENUMERATE))

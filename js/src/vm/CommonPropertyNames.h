@@ -193,6 +193,8 @@
     macro(int8, int8, "int8") \
     macro(int16, int16, "int16") \
     macro(int32, int32, "int32") \
+    macro(bigint64, bigint64, "bigint64") \
+    macro(biguint64, biguint64, "biguint64") \
     macro(Int8x16, Int8x16, "Int8x16") \
     macro(Int16x8, Int16x8, "Int16x8") \
     macro(Int32x4, Int32x4, "Int32x4") \
@@ -459,6 +461,7 @@
     macro(boolean, boolean, "boolean") \
     macro(null, null, "null") \
     macro(symbol, symbol, "symbol") \
-    macro(defineDataPropertyIntrinsic, defineDataPropertyIntrinsic, "_DefineDataProperty") \
+    macro(bigInt, bigInt, "bigint") \
+    macro(defineDataPropertyIntrinsic, defineDataPropertyIntrinsic, "_DefineDataProperty")
 
 #endif /* vm_CommonPropertyNames_h */

@@ -520,6 +520,8 @@ struct MOZ_STACK_CLASS BytecodeEmitter
 
     MOZ_MUST_USE bool emitNumberOp(double dval);
 
+    MOZ_MUST_USE bool emitBigIntOp(BigInt* bigint);
+
     MOZ_MUST_USE bool emitThisLiteral(ParseNode* pn);
     MOZ_MUST_USE bool emitGetFunctionThis(ParseNode* pn);
     MOZ_MUST_USE bool emitGetThisForSuperBase(ParseNode* pn);

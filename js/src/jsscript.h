@@ -1720,6 +1720,8 @@ class JSScript : public js::gc::TenuredCell
 
     void maybeSweepTypes(js::AutoClearTypeInferenceStateOnOOM* oom);
 
+    bool hasBigIntType(JSContext* cx);
+
     inline js::GlobalObject& global() const;
     js::GlobalObject& uninlinedGlobal() const;
 

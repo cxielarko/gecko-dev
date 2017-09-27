@@ -17,6 +17,7 @@
 #include "vm/EnvironmentObject.h"
 #include "vm/SharedArrayObject.h"
 #include "vm/Symbol.h"
+#include "vm/BigInt.h"
 #include "wasm/WasmJS.h"
 
 namespace js {

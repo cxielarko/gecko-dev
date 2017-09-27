@@ -61,7 +61,7 @@ HashableValue::setValue(JSContext* cx, HandleValue v)
     }
 
     MOZ_ASSERT(value.isUndefined() || value.isNull() || value.isBoolean() || value.isNumber() ||
-               value.isString() || value.isSymbol() || value.isObject());
+               value.isString() || value.isSymbol() || value.isBigInt() || value.isObject());
     return true;
 }
 
@@ -81,6 +81,8 @@ HashValue(const Value& v, const mozilla::HashCodeScrambler& hcs)
         return v.toString()->asAtom().hash();
     if (v.isSymbol())
         return v.toSymbol()->hash();
+    if (v.isBigInt())
+        return v.toBigInt()->hashValue();
     if (v.isObject())
         return hcs.scramble(v.asRawBits());
 

@@ -31,6 +31,7 @@
 #include "js/Conversions.h"
 #include "vm/GlobalObject.h"
 #include "vm/StringBuffer.h"
+#include "vm/Interpreter-inl.h"
 
 #include "jsatominlines.h"
 
@@ -497,6 +498,12 @@ Number(JSContext* cx, unsigned argc, Value* vp)
     CallArgs args = CallArgsFromVp(argc, vp);
 
     if (args.length() > 0) {
+        if (!ToNumeric(cx, args[0]))
+            return false;
+        if (args[0].isBigInt()) {
+            if (!CallSelfHostedUnaryOperator(cx, "BigIntNumberValue", args[0], args[0]))
+                return false;
+        }
         if (!ToNumber(cx, args[0]))
             return false;
     }
@@ -1614,10 +1621,31 @@ js::ToNumberSlow(JSContext* cx, HandleValue v_, double* out)
         }
         return false;
     }
+    if (v.isUndefined()) {
+        *out = GenericNaN();
+        return true;
+    }
+    MOZ_ASSERT(v.isBigInt());
+    if (!cx->helperThread()) {
+        JS_ReportErrorNumberASCII(cx, GetErrorMessage, nullptr,
+                                  JSMSG_BIGINT_TO_NUMBER);
+    }
+    return false;
+}
 
-    MOZ_ASSERT(v.isUndefined());
-    *out = GenericNaN();
-    return true;
+bool
+js::ToNumericSlow(JSContext* cx, MutableHandleValue vp)
+{
+    if (!vp.isPrimitive()) {
+        if (cx->helperThread())
+            return false;
+        if (!ToPrimitive(cx, JSTYPE_NUMBER, vp))
+            return false;
+    }
+    if (vp.isBigInt()) {
+        return true;
+    }
+    return ToNumber(cx, vp);
 }
 
 /*
@@ -1727,6 +1755,31 @@ js::ToInt32Slow(JSContext* cx, const HandleValue v, int32_t* out)
             return false;
     }
     *out = ToInt32(d);
+    return true;
+}
+
+bool
+js::ToInt32OrBigIntSlow(JSContext* cx, MutableHandleValue vp)
+{
+    MOZ_ASSERT(!vp.isInt32());
+    if (vp.isDouble()) {
+        vp.setInt32(ToInt32(vp.toDouble()));
+        return true;
+    }
+    if (!vp.isPrimitive()) {
+        if (cx->helperThread())
+            return false;
+        if (!ToPrimitive(cx, JSTYPE_NUMBER, vp))
+            return false;
+    }
+    if (vp.isInt32() || vp.isBigInt()) {
+        return true;
+    }
+    int32_t out;
+    if (!ToInt32Slow(cx, vp, &out)) {
+        return false;
+    }
+    vp.setInt32(out);
     return true;
 }
 

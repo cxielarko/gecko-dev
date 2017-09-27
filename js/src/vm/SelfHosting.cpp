@@ -23,6 +23,7 @@
 #include "jswrapper.h"
 #include "selfhosted.out.h"
 
+#include "builtin/BigIntObject.h"
 #include "builtin/Intl.h"
 #include "builtin/MapObject.h"
 #include "builtin/ModuleObject.h"
@@ -159,6 +160,25 @@ intrinsic_ToSource(JSContext* cx, unsigned argc, Value* vp)
         return false;
     args.rval().setString(str);
     return true;
+}
+
+static bool
+intrinsic_ToIndex(JSContext* cx, unsigned argc, Value* vp)
+{
+    CallArgs args = CallArgsFromVp(argc, vp);
+    uint64_t result;
+    if (!ToIndex(cx, args[0], &result))
+        return false;
+    args.rval().setNumber(static_cast<double>(result));
+    return true;
+}
+
+static bool
+intrinsic_ToPrimitiveHintNumber(JSContext* cx, unsigned argc, Value* vp)
+{
+    CallArgs args = CallArgsFromVp(argc, vp);
+    args.rval().set(args[0]);
+    return ToPrimitive(cx, JSTYPE_NUMBER, args.rval());
 }
 
 static bool
@@ -2350,6 +2370,8 @@ static const JSFunctionSpec intrinsic_functions[] = {
     JS_INLINABLE_FN("ToString",      intrinsic_ToString,                1,0, IntrinsicToString),
     JS_FN("ToSource",                intrinsic_ToSource,                1,0),
     JS_FN("ToPropertyKey",           intrinsic_ToPropertyKey,           1,0),
+    JS_FN("ToIndex",                 intrinsic_ToIndex,                 1,0),
+    JS_FN("ToPrimitiveHintNumber",   intrinsic_ToPrimitiveHintNumber,   1,0),
     JS_INLINABLE_FN("IsCallable",    intrinsic_IsCallable,              1,0, IntrinsicIsCallable),
     JS_INLINABLE_FN("IsConstructor", intrinsic_IsConstructor,           1,0,
                     IntrinsicIsConstructor),
@@ -2682,6 +2704,11 @@ static const JSFunctionSpec intrinsic_functions[] = {
     JS_FN("RejectPromise", intrinsic_RejectPromise, 2, 0),
     JS_FN("AddPromiseReactions", intrinsic_AddPromiseReactions, 3, 0),
     JS_FN("CallOriginalPromiseThen", intrinsic_CallOriginalPromiseThen, 3, 0),
+
+    JS_FN("NewBigInt", BigIntObject::MakeBigInt, 3, 0),
+    JS_FN("BigIntSign", BigIntGetSign, 1, 0),
+    JS_FN("BigIntSize", BigIntGetSize, 1, 0),
+    JS_FN("BigIntDigit", BigIntGetDigit, 2, 0),
 
     JS_FS_END
 };

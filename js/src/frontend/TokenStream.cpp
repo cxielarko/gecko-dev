@@ -28,6 +28,7 @@
 #include "js/CharacterEncoding.h"
 #include "js/UniquePtr.h"
 #include "vm/HelperThreads.h"
+#include "vm/SelfHosting.h"
 #include "vm/StringBuffer.h"
 #include "vm/Unicode.h"
 
@@ -1336,6 +1337,7 @@ TokenStream::getTokenInternal(TokenKind* ttp, Modifier modifier)
     DecimalPoint decimalPoint;
     const CharT* identStart;
     bool hadUnicodeEscape;
+    bool isBigInt = false;
 
     // Check if in the middle of a template string. Have to get this out of
     // the way first.
@@ -1529,6 +1531,12 @@ TokenStream::getTokenInternal(TokenKind* ttp, Modifier modifier)
                 c = getCharIgnoreEOL();
             } while (JS7_ISDEC(c));
         }
+#ifdef ENABLE_BIGINT
+        if (c == 'n') {
+            isBigInt = true;
+            c = getCharIgnoreEOL();
+        }
+#endif
         ungetCharIgnoreEOL(c);
 
         if (c != EOF) {
@@ -1546,6 +1554,25 @@ TokenStream::getTokenInternal(TokenKind* ttp, Modifier modifier)
                     goto error;
                 }
             }
+        }
+
+        if (isBigInt) {
+            size_t length = userbuf.addressOfNextRawChar() - numStart - 1;
+            JSAtom* atom = AtomizeChars(cx, numStart, length);
+            if (!atom)
+                goto error;
+            FixedInvokeArgs<2> args(cx);
+            args[0].set(StringValue(atom));
+            args[1].set(Int32Value(10));
+            RootedValue nullv(cx, NullValue());
+            RootedValue res(cx);
+            if (!CallSelfHostedFunction(cx, "ParseBigInt", nullv, args, &res))
+                goto error;
+            if (!res.isBigInt())
+                goto error;
+            tp->type = TOK_BIGINT;
+            tp->setBigInt(res.toBigInt());
+            goto out;
         }
 
         // Unlike identifiers and strings, numbers cannot contain escaped
@@ -1650,6 +1677,13 @@ TokenStream::getTokenInternal(TokenKind* ttp, Modifier modifier)
             numStart = userbuf.addressOfNextRawChar() - 1;
             goto decimal;
         }
+
+#ifdef ENABLE_BIGINT
+        if (c == 'n') {
+            isBigInt = true;
+            c = getCharIgnoreEOL();
+        }
+#endif
         ungetCharIgnoreEOL(c);
 
         if (c != EOF) {
@@ -1667,6 +1701,25 @@ TokenStream::getTokenInternal(TokenKind* ttp, Modifier modifier)
                     goto error;
                 }
             }
+        }
+
+        if (isBigInt) {
+            size_t length = userbuf.addressOfNextRawChar() - numStart - 1;
+            JSAtom* atom = AtomizeChars(cx, numStart, length);
+            if (!atom)
+                goto error;
+            FixedInvokeArgs<2> args(cx);
+            args[0].set(StringValue(atom));
+            args[1].set(Int32Value(radix));
+            RootedValue nullv(cx, NullValue());
+            RootedValue res(cx);
+            if (!CallSelfHostedFunction(cx, "ParseBigInt", nullv, args, &res))
+                goto error;
+            if (!res.isBigInt())
+                goto error;
+            tp->type = TOK_BIGINT;
+            tp->setBigInt(res.toBigInt());
+            goto out;
         }
 
         double dval;

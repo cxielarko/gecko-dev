@@ -15,6 +15,7 @@
 
 #include "jit/Ion.h"
 #include "vm/ArgumentsObject.h"
+#include "vm/SelfHosting.h"
 
 #include "jsatominlines.h"
 #include "jsobjinlines.h"
@@ -25,6 +26,53 @@
 #include "vm/UnboxedObject-inl.h"
 
 namespace js {
+
+static inline bool
+CallSelfHostedUnaryOperator(JSContext* cx, char const* name,
+                            HandleValue val, MutableHandleValue res)
+{
+    FixedInvokeArgs<1> args(cx);
+    args[0].set(val);
+    RootedValue nullv(cx, NullValue());
+    return CallSelfHostedFunction(cx, name, nullv, args, res);
+}
+
+static inline bool
+CallSelfHostedBinaryOperator(JSContext* cx, char const* name,
+                             HandleValue lhs, HandleValue rhs,
+                             MutableHandleValue res)
+{
+    FixedInvokeArgs<2> args(cx);
+    args[0].set(lhs);
+    args[1].set(rhs);
+    RootedValue nullv(cx, NullValue());
+    return CallSelfHostedFunction(cx, name, nullv, args, res);
+}
+
+static inline bool
+TryBigIntBinaryOperator(JSContext* cx, char const* name,
+                        HandleValue lhs, HandleValue rhs,
+                        MutableHandleValue res)
+{
+    if (lhs.isBigInt() && rhs.isBigInt()) {
+        return CallSelfHostedBinaryOperator(cx, name, lhs, rhs, res);
+    }
+    JS_ReportErrorNumberASCII(cx, GetErrorMessage, nullptr,
+                              JSMSG_BIGINT_TO_NUMBER);
+    return false;
+}
+
+static inline bool
+TryBigIntUnaryOperator(JSContext* cx, char const* name,
+                       HandleValue val, MutableHandleValue res)
+{
+    if (val.isBigInt()) {
+        return CallSelfHostedUnaryOperator(cx, name, val, res);
+    }
+    JS_ReportErrorNumberASCII(cx, GetErrorMessage, nullptr,
+                              JSMSG_BIGINT_TO_NUMBER);
+    return false;
+}
 
 /*
  * Every possible consumer of MagicValue(JS_OPTIMIZED_ARGUMENTS) (as determined
@@ -460,10 +508,15 @@ NegOperation(JSContext* cx, HandleScript script, jsbytecode* pc, HandleValue val
     if (val.isInt32() && (i = val.toInt32()) != 0 && i != INT32_MIN) {
         res.setInt32(-i);
     } else {
-        double d;
-        if (!ToNumber(cx, val, &d))
+        RootedValue numericVal(cx, val);
+        if (!ToNumeric(cx, &numericVal)) {
             return false;
-        res.setNumber(-d);
+        }
+        if (numericVal.isNumber()) {
+            res.setNumber(-numericVal.toNumber());
+        } else {
+            return TryBigIntUnaryOperator(cx, "BigIntNeg", val, res);
+        }
     }
 
     return true;
@@ -706,10 +759,33 @@ InitArrayElemOperation(JSContext* cx, jsbytecode* pc, HandleObject obj, uint32_t
                     return false;                                             \
                 *res = result OP 0;                                           \
             } else {                                                          \
-                double l, r;                                                  \
-                if (!ToNumber(cx, lhs, &l) || !ToNumber(cx, rhs, &r))         \
+                if (!ToNumeric(cx, lhs) || !ToNumeric(cx, rhs)) {             \
                     return false;                                             \
-                *res = (l OP r);                                              \
+                }                                                             \
+                if (lhs.isNumber() && rhs.isNumber()) {                       \
+                    *res = (lhs.toNumber() OP rhs.toNumber());                \
+                } else if (lhs.isBigInt() && rhs.isBigInt()) {                \
+                    RootedValue rv(cx);                                       \
+                    if (!TryBigIntBinaryOperator(cx, "BigIntCompare",         \
+                                                     lhs, rhs, &rv)) {        \
+                        return false;                                         \
+                    }                                                         \
+                    int32_t result;                                           \
+                    if (!ToInt32(cx, rv, &result))                            \
+                        return false;                                         \
+                    *res = result OP 0;                                       \
+                } else {                                                      \
+                    RootedValue rv(cx);                                       \
+                    if (!CallSelfHostedBinaryOperator(cx,                     \
+                                                      "BigIntCompareNumber",  \
+                                                      lhs, rhs, &rv)) {       \
+                        return false;                                         \
+                    }                                                         \
+                    int32_t result;                                           \
+                    if (!ToInt32(cx, rv, &result))                            \
+                        return false;                                         \
+                    *res = (result == 2 || result == -2) ? false : result OP 0; \
+                }                                                             \
             }                                                                 \
         }                                                                     \
         return true;                                                          \
@@ -736,7 +812,7 @@ GreaterThanOrEqualOperation(JSContext* cx, MutableHandleValue lhs, MutableHandle
 }
 
 static MOZ_ALWAYS_INLINE bool
-BitNot(JSContext* cx, HandleValue in, int* out)
+BitNot32(JSContext* cx, HandleValue in, int* out)
 {
     int i;
     if (!ToInt32(cx, in, &i))
@@ -746,7 +822,7 @@ BitNot(JSContext* cx, HandleValue in, int* out)
 }
 
 static MOZ_ALWAYS_INLINE bool
-BitXor(JSContext* cx, HandleValue lhs, HandleValue rhs, int* out)
+BitXor32(JSContext* cx, HandleValue lhs, HandleValue rhs, int* out)
 {
     int left, right;
     if (!ToInt32(cx, lhs, &left) || !ToInt32(cx, rhs, &right))
@@ -756,7 +832,7 @@ BitXor(JSContext* cx, HandleValue lhs, HandleValue rhs, int* out)
 }
 
 static MOZ_ALWAYS_INLINE bool
-BitOr(JSContext* cx, HandleValue lhs, HandleValue rhs, int* out)
+BitOr32(JSContext* cx, HandleValue lhs, HandleValue rhs, int* out)
 {
     int left, right;
     if (!ToInt32(cx, lhs, &left) || !ToInt32(cx, rhs, &right))
@@ -766,7 +842,7 @@ BitOr(JSContext* cx, HandleValue lhs, HandleValue rhs, int* out)
 }
 
 static MOZ_ALWAYS_INLINE bool
-BitAnd(JSContext* cx, HandleValue lhs, HandleValue rhs, int* out)
+BitAnd32(JSContext* cx, HandleValue lhs, HandleValue rhs, int* out)
 {
     int left, right;
     if (!ToInt32(cx, lhs, &left) || !ToInt32(cx, rhs, &right))
@@ -776,7 +852,7 @@ BitAnd(JSContext* cx, HandleValue lhs, HandleValue rhs, int* out)
 }
 
 static MOZ_ALWAYS_INLINE bool
-BitLsh(JSContext* cx, HandleValue lhs, HandleValue rhs, int* out)
+BitLsh32(JSContext* cx, HandleValue lhs, HandleValue rhs, int* out)
 {
     int32_t left, right;
     if (!ToInt32(cx, lhs, &left) || !ToInt32(cx, rhs, &right))
@@ -786,13 +862,91 @@ BitLsh(JSContext* cx, HandleValue lhs, HandleValue rhs, int* out)
 }
 
 static MOZ_ALWAYS_INLINE bool
-BitRsh(JSContext* cx, HandleValue lhs, HandleValue rhs, int* out)
+BitRsh32(JSContext* cx, HandleValue lhs, HandleValue rhs, int* out)
 {
     int32_t left, right;
     if (!ToInt32(cx, lhs, &left) || !ToInt32(cx, rhs, &right))
         return false;
     *out = left >> (right & 31);
     return true;
+}
+
+static MOZ_ALWAYS_INLINE bool
+BitNot(JSContext* cx, MutableHandleValue in, MutableHandleValue out)
+{
+    if (!ToInt32OrBigInt(cx, in))
+        return false;
+
+    if (in.isInt32()) {
+        out.setInt32(~in.toInt32());
+        return true;
+    }
+    return TryBigIntUnaryOperator(cx, "BigIntBitNot", in, out);
+}
+
+static MOZ_ALWAYS_INLINE bool
+BitXor(JSContext* cx, MutableHandleValue lhs, MutableHandleValue rhs, MutableHandleValue out)
+{
+    if (!ToInt32OrBigInt(cx, lhs) || !ToInt32OrBigInt(cx, rhs))
+        return false;
+
+    if (lhs.isInt32() && rhs.isInt32()) {
+        out.setInt32(lhs.toInt32() ^ rhs.toInt32());
+        return true;
+    }
+    return TryBigIntBinaryOperator(cx, "BigIntBitXor", lhs, rhs, out);
+}
+
+static MOZ_ALWAYS_INLINE bool
+BitOr(JSContext* cx, MutableHandleValue lhs, MutableHandleValue rhs, MutableHandleValue out)
+{
+    if (!ToInt32OrBigInt(cx, lhs) || !ToInt32OrBigInt(cx, rhs))
+        return false;
+
+    if (lhs.isInt32() && rhs.isInt32()) {
+        out.setInt32(lhs.toInt32() | rhs.toInt32());
+        return true;
+    }
+    return TryBigIntBinaryOperator(cx, "BigIntBitOr", lhs, rhs, out);
+}
+
+static MOZ_ALWAYS_INLINE bool
+BitAnd(JSContext* cx, MutableHandleValue lhs, MutableHandleValue rhs, MutableHandleValue out)
+{
+        if (!ToInt32OrBigInt(cx, lhs) || !ToInt32OrBigInt(cx, rhs))
+        return false;
+
+    if (lhs.isInt32() && rhs.isInt32()) {
+        out.setInt32(lhs.toInt32() & rhs.toInt32());
+        return true;
+    }
+    return TryBigIntBinaryOperator(cx, "BigIntBitAnd", lhs, rhs, out);
+}
+
+static MOZ_ALWAYS_INLINE bool
+BitLsh(JSContext* cx, MutableHandleValue lhs, MutableHandleValue rhs, MutableHandleValue out)
+{
+        if (!ToInt32OrBigInt(cx, lhs) || !ToInt32OrBigInt(cx, rhs))
+        return false;
+
+    if (lhs.isInt32() && rhs.isInt32()) {
+        out.setInt32(lhs.toInt32() << (rhs.toInt32() & 31));
+        return true;
+    }
+    return TryBigIntBinaryOperator(cx, "BigIntLsh", lhs, rhs, out);
+}
+
+static MOZ_ALWAYS_INLINE bool
+BitRsh(JSContext* cx, MutableHandleValue lhs, MutableHandleValue rhs, MutableHandleValue out)
+{
+        if (!ToInt32OrBigInt(cx, lhs) || !ToInt32OrBigInt(cx, rhs))
+        return false;
+
+    if (lhs.isInt32() && rhs.isInt32()) {
+        out.setInt32(lhs.toInt32() >> (rhs.toInt32() & 31));
+        return true;
+    }
+    return TryBigIntBinaryOperator(cx, "BigIntRsh", lhs, rhs, out);
 }
 
 static MOZ_ALWAYS_INLINE bool

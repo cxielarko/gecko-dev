@@ -49,6 +49,7 @@
 // Expand the given macro D for each public GC pointer.
 #define FOR_EACH_PUBLIC_GC_POINTER_TYPE(D) \
     D(JS::Symbol*) \
+    D(JS::BigInt*) \
     D(JSAtom*) \
     D(JSFunction*) \
     D(JSObject*) \
@@ -70,6 +71,7 @@ class JSScript;
 class JSString;
 namespace JS {
 class Symbol;
+class BigInt;
 }
 
 namespace JS {
@@ -135,6 +137,7 @@ struct GCPointerPolicy
     }
 };
 template <> struct GCPolicy<JS::Symbol*> : public GCPointerPolicy<JS::Symbol*> {};
+template <> struct GCPolicy<JS::BigInt*> : public GCPointerPolicy<JS::BigInt*> {};
 template <> struct GCPolicy<JSAtom*> : public GCPointerPolicy<JSAtom*> {};
 template <> struct GCPolicy<JSFunction*> : public GCPointerPolicy<JSFunction*> {};
 template <> struct GCPolicy<JSObject*> : public GCPointerPolicy<JSObject*> {};

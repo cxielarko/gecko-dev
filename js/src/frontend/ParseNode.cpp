@@ -194,6 +194,7 @@ PushNodeChildren(ParseNode* pn, NodeStack* stack)
       case PNK_ELISION:
       case PNK_GENERATOR:
       case PNK_NUMBER:
+      case PNK_BIGINT:
       case PNK_BREAK:
       case PNK_CONTINUE:
       case PNK_DEBUGGER:

@@ -1573,6 +1573,8 @@ enum Type {
     Uint16,
     Int32,
     Uint32,
+    BigInt64,
+    BigUint64,
     Float32,
     Float64,
 
@@ -1609,6 +1611,8 @@ byteSize(Type atype)
       case Uint32:
       case Float32:
         return 4;
+      case BigInt64:
+      case BigUint64:
       case Int64:
       case Float64:
         return 8;
@@ -1628,6 +1632,7 @@ isSignedIntType(Type atype) {
       case Int8:
       case Int16:
       case Int32:
+      case BigInt64:
       case Int64:
       case Int8x16:
       case Int16x8:
@@ -1637,6 +1642,7 @@ isSignedIntType(Type atype) {
       case Uint8Clamped:
       case Uint16:
       case Uint32:
+      case BigUint64:
       case Float32:
       case Float64:
       case Float32x4:
@@ -1656,6 +1662,8 @@ isSimdType(Type atype) {
       case Uint16:
       case Int32:
       case Uint32:
+      case BigInt64:
+      case BigUint64:
       case Int64:
       case Float32:
       case Float64:
@@ -1688,6 +1696,8 @@ scalarByteSize(Type atype) {
       case Uint16:
       case Int32:
       case Uint32:
+      case BigInt64:
+      case BigUint64:
       case Int64:
       case Float32:
       case Float64:
@@ -1877,6 +1887,10 @@ UnwrapInt32Array(JSObject* obj);
 extern JS_FRIEND_API(JSObject*)
 UnwrapUint32Array(JSObject* obj);
 extern JS_FRIEND_API(JSObject*)
+UnwrapBigInt64Array(JSObject* obj);
+extern JS_FRIEND_API(JSObject*)
+UnwrapBigUint64Array(JSObject* obj);
+extern JS_FRIEND_API(JSObject*)
 UnwrapFloat32Array(JSObject* obj);
 extern JS_FRIEND_API(JSObject*)
 UnwrapFloat64Array(JSObject* obj);
@@ -1903,6 +1917,8 @@ extern JS_FRIEND_DATA(const Class* const) Int16ArrayClassPtr;
 extern JS_FRIEND_DATA(const Class* const) Uint16ArrayClassPtr;
 extern JS_FRIEND_DATA(const Class* const) Int32ArrayClassPtr;
 extern JS_FRIEND_DATA(const Class* const) Uint32ArrayClassPtr;
+extern JS_FRIEND_DATA(const Class* const) BigInt64ArrayClassPtr;
+extern JS_FRIEND_DATA(const Class* const) BigUint64ArrayClassPtr;
 extern JS_FRIEND_DATA(const Class* const) Float32ArrayClassPtr;
 extern JS_FRIEND_DATA(const Class* const) Float64ArrayClassPtr;
 

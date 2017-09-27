@@ -18,6 +18,7 @@
 #include "vm/HelperThreads.h"
 #include "vm/Interpreter.h"
 #include "vm/Symbol.h"
+#include "vm/BigInt.h"
 
 namespace js {
 

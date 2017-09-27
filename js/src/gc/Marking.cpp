@@ -29,6 +29,7 @@
 #include "vm/Scope.h"
 #include "vm/Shape.h"
 #include "vm/Symbol.h"
+#include "vm/BigInt.h"
 #include "vm/TypedArrayObject.h"
 #include "vm/UnboxedObject.h"
 #include "wasm/WasmJS.h"
@@ -922,6 +923,7 @@ template <> void GCMarker::traverse(JSObject* thing) { markAndPush(thing); }
 template <> void GCMarker::traverse(ObjectGroup* thing) { markAndPush(thing); }
 template <> void GCMarker::traverse(jit::JitCode* thing) { markAndPush(thing); }
 template <> void GCMarker::traverse(JSScript* thing) { markAndPush(thing); }
+template <> void GCMarker::traverse(BigInt* thing) { markAndPush(thing); }
 } // namespace js
 
 namespace js {
@@ -1648,7 +1650,8 @@ ObjectDenseElementsMayBeMarkable(NativeObject* nobj)
         return true;
 
     static const uint32_t flagMask =
-        TYPE_FLAG_STRING | TYPE_FLAG_SYMBOL | TYPE_FLAG_LAZYARGS | TYPE_FLAG_ANYOBJECT;
+        TYPE_FLAG_STRING | TYPE_FLAG_SYMBOL | TYPE_FLAG_LAZYARGS | TYPE_FLAG_ANYOBJECT |
+        TYPE_FLAG_BIGINT;
     bool mayBeMarkable = typeSet->hasAnyFlag(flagMask) || typeSet->getObjectCount() != 0;
 
 #ifdef DEBUG
@@ -1726,6 +1729,11 @@ GCMarker::processMarkStackTop(SliceBudget& budget)
         return;
       }
 
+      case MarkStack::BigIntTag: {
+        auto bigInt = stack.popPtr().as<BigInt>();
+        return bigInt->traceChildren(this);
+      }
+
       default: MOZ_CRASH("Invalid tag in mark stack");
     }
     return;
@@ -1753,6 +1761,8 @@ GCMarker::processMarkStackTop(SliceBudget& budget)
             }
         } else if (v.isSymbol()) {
             traverseEdge(obj, v.toSymbol());
+        } else if (v.isBigInt()) {
+            traverseEdge(obj, v.toBigInt());
         } else if (v.isPrivateGCThing()) {
             traverseEdge(obj, v.toGCCellPtr());
         }
@@ -1947,6 +1957,8 @@ template <>
 struct MapTypeToMarkStackTag<jit::JitCode*> { static const auto value = MarkStack::JitCodeTag; };
 template <>
 struct MapTypeToMarkStackTag<JSScript*> { static const auto value = MarkStack::ScriptTag; };
+template <>
+struct MapTypeToMarkStackTag<BigInt*> { static const auto value = MarkStack::BigIntTag; };
 
 static inline bool
 TagIsArrayTag(MarkStack::Tag tag)

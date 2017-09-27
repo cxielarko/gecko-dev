@@ -465,9 +465,11 @@ struct uint8_clamped {
     explicit uint8_clamped(uint8_t x)    { *this = x; }
     explicit uint8_clamped(uint16_t x)   { *this = x; }
     explicit uint8_clamped(uint32_t x)   { *this = x; }
+    explicit uint8_clamped(uint64_t x)    { *this = x; }
     explicit uint8_clamped(int8_t x)     { *this = x; }
     explicit uint8_clamped(int16_t x)    { *this = x; }
     explicit uint8_clamped(int32_t x)    { *this = x; }
+    explicit uint8_clamped(int64_t x)    { *this = x; }
     explicit uint8_clamped(double x)     { *this = x; }
 
     uint8_clamped& operator=(const uint8_clamped& x) {
@@ -510,6 +512,20 @@ struct uint8_clamped {
                  ? uint8_t(x)
                  : 255)
               : 0;
+        return *this;
+    }
+
+    uint8_clamped& operator=(int64_t x) {
+        val = (x >= 0)
+            ? ((x < 255)
+               ? uint8_t(x)
+               : 255)
+            : 0;
+        return *this;
+    }
+
+    uint8_clamped& operator=(uint64_t x) {
+        val = (x > 255) ? 255 : uint8_t(x);
         return *this;
     }
 

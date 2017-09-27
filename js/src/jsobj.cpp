@@ -40,6 +40,7 @@
 #include "builtin/Eval.h"
 #include "builtin/Object.h"
 #include "builtin/SymbolObject.h"
+#include "builtin/BigIntObject.h"
 #include "frontend/BytecodeCompiler.h"
 #include "gc/Marking.h"
 #include "gc/Policy.h"
@@ -54,6 +55,7 @@
 #include "vm/RegExpStaticsObject.h"
 #include "vm/Shape.h"
 #include "vm/TypedArrayObject.h"
+#include "vm/BigInt.h"
 
 #include "jsatominlines.h"
 #include "jsboolinlines.h"
@@ -2417,14 +2419,14 @@ js::LookupOwnPropertyPure(JSContext* cx, JSObject* obj, jsid id, PropertyResult*
 }
 
 static inline bool
-NativeGetPureInline(NativeObject* pobj, jsid id, PropertyResult prop, Value* vp)
+NativeGetPureInline(JSContext* cx, NativeObject* pobj, jsid id, PropertyResult prop, Value* vp)
 {
     if (prop.isDenseOrTypedArrayElement()) {
         // For simplicity we ignore the TypedArray with string index case.
         if (!JSID_IS_INT(id))
             return false;
 
-        *vp = pobj->getDenseOrTypedArrayElement(JSID_TO_INT(id));
+        *vp = pobj->getDenseOrTypedArrayElement(cx, JSID_TO_INT(id));
         return true;
     }
 
@@ -2456,7 +2458,7 @@ js::GetPropertyPure(JSContext* cx, JSObject* obj, jsid id, Value* vp)
         return true;
     }
 
-    return pobj->isNative() && NativeGetPureInline(&pobj->as<NativeObject>(), id, prop, vp);
+    return pobj->isNative() && NativeGetPureInline(cx, &pobj->as<NativeObject>(), id, prop, vp);
 }
 
 bool
@@ -2471,7 +2473,7 @@ js::GetOwnPropertyPure(JSContext* cx, JSObject* obj, jsid id, Value* vp)
         return true;
     }
 
-    return obj->isNative() && NativeGetPureInline(&obj->as<NativeObject>(), id, prop, vp);
+    return obj->isNative() && NativeGetPureInline(cx, &obj->as<NativeObject>(), id, prop, vp);
 }
 
 static inline bool
@@ -3283,9 +3285,13 @@ js::PrimitiveToObject(JSContext* cx, const Value& v)
         return NumberObject::create(cx, v.toNumber());
     if (v.isBoolean())
         return BooleanObject::create(cx, v.toBoolean());
-    MOZ_ASSERT(v.isSymbol());
-    RootedSymbol symbol(cx, v.toSymbol());
-    return SymbolObject::create(cx, symbol);
+    if (v.isSymbol()) {
+        RootedSymbol symbol(cx, v.toSymbol());
+        return SymbolObject::create(cx, symbol);
+    }
+    MOZ_ASSERT(v.isBigInt());
+    RootedBigInt bigInt(cx, v.toBigInt());
+    return BigIntToObject(cx, bigInt);
 }
 
 /*

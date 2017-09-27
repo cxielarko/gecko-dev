@@ -17,6 +17,7 @@
 #include "jstypes.h"
 
 #include "jit/InlinableNatives.h"
+#include "vm/BigInt.h"
 #include "vm/GlobalObject.h"
 #include "vm/ProxyObject.h"
 #include "vm/StringBuffer.h"
@@ -172,6 +173,8 @@ js::ToBooleanSlow(HandleValue v)
 {
     if (v.isString())
         return v.toString()->length() != 0;
+    if (v.isBigInt())
+        return v.toBigInt()->toBoolean();
 
     MOZ_ASSERT(v.isObject());
     return !EmulatesUndefined(&v.toObject());

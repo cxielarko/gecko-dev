@@ -246,6 +246,10 @@ class ScalarTypeDescr : public SimpleTypeDescr
                       "TypedObjectConstants.h must be consistent with Scalar::Type");
         static_assert(Scalar::Uint32 == JS_SCALARTYPEREPR_UINT32,
                       "TypedObjectConstants.h must be consistent with Scalar::Type");
+        static_assert(Scalar::BigInt64 == JS_SCALARTYPEREPR_BIGINT64,
+                      "TypedObjectConstants.h must be consistent with Scalar::Type");
+        static_assert(Scalar::BigUint64 == JS_SCALARTYPEREPR_BIGUINT64,
+                      "TypedObjectConstants.h must be consistent with Scalar::Type");
         static_assert(Scalar::Float32 == JS_SCALARTYPEREPR_FLOAT32,
                       "TypedObjectConstants.h must be consistent with Scalar::Type");
         static_assert(Scalar::Float64 == JS_SCALARTYPEREPR_FLOAT64,
@@ -277,6 +281,8 @@ class ScalarTypeDescr : public SimpleTypeDescr
     macro_(Scalar::Uint16,  uint16_t, uint16)                   \
     macro_(Scalar::Int32,   int32_t,  int32)                    \
     macro_(Scalar::Uint32,  uint32_t, uint32)                   \
+    macro_(Scalar::BigInt64, int64_t, bigint64)                 \
+    macro_(Scalar::BigUint64, uint64_t, biguint64)              \
     macro_(Scalar::Float32, float,    float32)                  \
     macro_(Scalar::Float64, double,   float64)
 

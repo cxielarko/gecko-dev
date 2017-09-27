@@ -183,6 +183,32 @@ ToNumber(JSContext* cx, JS::MutableHandleValue vp)
     return true;
 }
 
+bool
+ToNumericSlow(JSContext* cx, JS::MutableHandleValue vp);
+
+MOZ_ALWAYS_INLINE MOZ_MUST_USE bool
+ToNumeric(JSContext* cx, JS::MutableHandleValue vp)
+{
+    if (vp.isNumber())
+        return true;
+    if (vp.isBigInt())
+        return true;
+    return ToNumericSlow(cx, vp);
+}
+
+bool
+ToInt32OrBigIntSlow(JSContext* cx, JS::MutableHandleValue vp);
+
+MOZ_ALWAYS_INLINE MOZ_MUST_USE bool
+ToInt32OrBigInt(JSContext* cx, JS::MutableHandleValue vp)
+{
+    if (vp.isInt32())
+        return true;
+    if (vp.isBigInt())
+        return true;
+    return ToInt32OrBigIntSlow(cx, vp);
+}
+
 MOZ_MUST_USE bool
 num_parseInt(JSContext* cx, unsigned argc, Value* vp);
 

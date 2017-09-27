@@ -200,6 +200,7 @@ class SyntaxParseHandler
     }
 
     Node newNumber(double value, DecimalPoint decimalPoint, const TokenPos& pos) { return NodeGeneric; }
+    Node newBigInt(BigInt* bigint, const TokenPos& pos) { return NodeGeneric; }
     Node newBooleanLiteral(bool cond, const TokenPos& pos) { return NodeGeneric; }
 
     Node newStringLiteral(JSAtom* atom, const TokenPos& pos) {

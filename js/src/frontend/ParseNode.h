@@ -46,6 +46,7 @@ class ObjectBox;
     F(OBJECT_PROPERTY_NAME) \
     F(COMPUTED_NAME) \
     F(NUMBER) \
+    F(BIGINT) \
     F(STRING) \
     F(TEMPLATE_STRING_LIST) \
     F(TEMPLATE_STRING) \
@@ -568,9 +569,9 @@ class ParseNode
                 ObjectBox*   objbox;    /* regexp object */
                 FunctionBox* funbox;    /* function object */
             };
-            ParseNode*  expr;           /* module or function body, var
-                                           initializer, argument default, or
-                                           base object of PNK_DOT */
+            ParseNode*  expr;       /* module or function body, var
+                                       initializer, argument default, or
+                                       base object of PNK_DOT */
         } name;
         struct {
             LexicalScope::Data* bindings;
@@ -584,6 +585,7 @@ class ParseNode
             friend class LoopControlStatement;
             PropertyName*    label;    /* target of break/continue statement */
         } loopControl;
+        BigInt* bigint;
     } pn_u;
 
 #define pn_objbox       pn_u.name.objbox
@@ -606,6 +608,7 @@ class ParseNode
 #define pn_objbox       pn_u.name.objbox
 #define pn_expr         pn_u.name.expr
 #define pn_dval         pn_u.number.value
+#define pn_bigint       pn_u.bigint
 
 
   public:
@@ -692,6 +695,7 @@ class ParseNode
     /* True if pn is a parsenode representing a literal constant. */
     bool isLiteral() const {
         return isKind(PNK_NUMBER) ||
+               isKind(PNK_BIGINT) ||
                isKind(PNK_STRING) ||
                isKind(PNK_TRUE) ||
                isKind(PNK_FALSE) ||
@@ -744,6 +748,12 @@ class ParseNode
         MOZ_ASSERT(getKind() == PNK_NUMBER);
         pn_u.number.value = value;
         pn_u.number.decimalPoint = decimalPoint;
+    }
+
+    void initBigInt(BigInt* bigint) {
+        MOZ_ASSERT(pn_arity == PN_NULLARY);
+        MOZ_ASSERT(getKind() == PNK_BIGINT);
+        pn_u.bigint = bigint;
     }
 
     void makeEmpty() {

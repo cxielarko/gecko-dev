@@ -83,6 +83,20 @@ ConvertNumber<uint32_t, float>(float src)
     return JS::ToUint32(src);
 }
 
+template<>
+inline int64_t
+ConvertNumber<int64_t, float>(float src)
+{
+    return JS::ToInt64(src);
+}
+
+template<>
+inline uint64_t
+ConvertNumber<uint64_t, float>(float src)
+{
+    return JS::ToUint64(src);
+}
+
 template<> inline int8_t
 ConvertNumber<int8_t, double>(double src)
 {
@@ -131,6 +145,20 @@ ConvertNumber<uint32_t, double>(double src)
     return JS::ToUint32(src);
 }
 
+template<>
+inline int64_t
+ConvertNumber<int64_t, double>(double src)
+{
+    return JS::ToInt64(src);
+}
+
+template<>
+inline uint64_t
+ConvertNumber<uint64_t, double>(double src)
+{
+    return JS::ToUint64(src);
+}
+
 template<typename To, typename From>
 inline To
 ConvertNumber(From src)
@@ -149,6 +177,8 @@ template<> struct TypeIDOfType<int16_t> { static const Scalar::Type id = Scalar:
 template<> struct TypeIDOfType<uint16_t> { static const Scalar::Type id = Scalar::Uint16; };
 template<> struct TypeIDOfType<int32_t> { static const Scalar::Type id = Scalar::Int32; };
 template<> struct TypeIDOfType<uint32_t> { static const Scalar::Type id = Scalar::Uint32; };
+template<> struct TypeIDOfType<int64_t> { static const Scalar::Type id = Scalar::BigInt64; };
+template<> struct TypeIDOfType<uint64_t> { static const Scalar::Type id = Scalar::BigUint64; };
 template<> struct TypeIDOfType<float> { static const Scalar::Type id = Scalar::Float32; };
 template<> struct TypeIDOfType<double> { static const Scalar::Type id = Scalar::Float64; };
 template<> struct TypeIDOfType<uint8_clamped> { static const Scalar::Type id = Scalar::Uint8Clamped; };
@@ -306,6 +336,18 @@ class ElementSpecific
           }
           case Scalar::Uint32: {
             SharedMem<JS_VOLATILE_ARM uint32_t*> src = data.cast<JS_VOLATILE_ARM uint32_t*>();
+            for (uint32_t i = 0; i < count; ++i)
+                Ops::store(dest++, ConvertNumber<T>(Ops::load(src++)));
+            break;
+          }
+          case Scalar::BigInt64: {
+            SharedMem<JS_VOLATILE_ARM int64_t*> src = data.cast<JS_VOLATILE_ARM int64_t*>();
+            for (uint32_t i = 0; i < count; ++i)
+                Ops::store(dest++, ConvertNumber<T>(Ops::load(src++)));
+            break;
+          }
+          case Scalar::BigUint64: {
+            SharedMem<JS_VOLATILE_ARM uint64_t*> src = data.cast<JS_VOLATILE_ARM uint64_t*>();
             for (uint32_t i = 0; i < count; ++i)
                 Ops::store(dest++, ConvertNumber<T>(Ops::load(src++)));
             break;
@@ -519,6 +561,18 @@ class ElementSpecific
           }
           case Scalar::Uint32: {
             uint32_t* src = static_cast<uint32_t*>(data);
+            for (uint32_t i = 0; i < len; ++i)
+                Ops::store(dest++, ConvertNumber<T>(*src++));
+            break;
+          }
+          case Scalar::BigInt64: {
+            int64_t* src = static_cast<int64_t*>(data);
+            for (uint32_t i = 0; i < len; ++i)
+                Ops::store(dest++, ConvertNumber<T>(*src++));
+            break;
+          }
+          case Scalar::BigUint64: {
+            uint64_t* src = static_cast<uint64_t*>(data);
             for (uint32_t i = 0; i < len; ++i)
                 Ops::store(dest++, ConvertNumber<T>(*src++));
             break;

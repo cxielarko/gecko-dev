@@ -1221,7 +1221,7 @@ class NativeObject : public ShapedObject
     static inline void removeDenseElementForSparseIndex(JSContext* cx,
                                                         HandleNativeObject obj, uint32_t index);
 
-    inline Value getDenseOrTypedArrayElement(uint32_t idx);
+    inline Value getDenseOrTypedArrayElement(JSContext* cx, uint32_t idx);
 
     inline void copyDenseElements(uint32_t dstStart, const Value* src, uint32_t count);
     inline void initDenseElements(uint32_t dstStart, const Value* src, uint32_t count);

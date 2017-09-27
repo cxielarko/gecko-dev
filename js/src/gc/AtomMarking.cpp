@@ -188,7 +188,7 @@ AtomMarkingRuntime::markAtomValue(JSContext* cx, const Value& value)
         markAtom(cx, value.toSymbol());
         return;
     }
-    MOZ_ASSERT_IF(value.isGCThing(), value.isObject() || value.isPrivateGCThing());
+    MOZ_ASSERT_IF(value.isGCThing(), value.isObject() || value.isPrivateGCThing() || value.isBigInt());
 }
 
 void
@@ -274,7 +274,7 @@ AtomMarkingRuntime::valueIsMarked(Zone* zone, const Value& value)
     if (value.isSymbol())
         return atomIsMarked(zone, value.toSymbol());
 
-    MOZ_ASSERT_IF(value.isGCThing(), value.isObject() || value.isPrivateGCThing());
+    MOZ_ASSERT_IF(value.isGCThing(), value.isObject() || value.isPrivateGCThing() || value.isBigInt());
     return true;
 }
 

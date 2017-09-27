@@ -10589,7 +10589,7 @@ CodeGenerator::visitThrow(LThrow* lir)
 }
 
 typedef bool (*BitNotFn)(JSContext*, HandleValue, int* p);
-static const VMFunction BitNotInfo = FunctionInfo<BitNotFn>(BitNot, "BitNot");
+static const VMFunction BitNotInfo = FunctionInfo<BitNotFn>(BitNot32, "BitNot32");
 
 void
 CodeGenerator::visitBitNotV(LBitNotV* lir)
@@ -10599,11 +10599,11 @@ CodeGenerator::visitBitNotV(LBitNotV* lir)
 }
 
 typedef bool (*BitopFn)(JSContext*, HandleValue, HandleValue, int* p);
-static const VMFunction BitAndInfo = FunctionInfo<BitopFn>(BitAnd, "BitAnd");
-static const VMFunction BitOrInfo = FunctionInfo<BitopFn>(BitOr, "BitOr");
-static const VMFunction BitXorInfo = FunctionInfo<BitopFn>(BitXor, "BitXor");
-static const VMFunction BitLhsInfo = FunctionInfo<BitopFn>(BitLsh, "BitLsh");
-static const VMFunction BitRhsInfo = FunctionInfo<BitopFn>(BitRsh, "BitRsh");
+static const VMFunction BitAndInfo = FunctionInfo<BitopFn>(BitAnd32, "BitAnd32");
+static const VMFunction BitOrInfo = FunctionInfo<BitopFn>(BitOr32, "BitOr32");
+static const VMFunction BitXorInfo = FunctionInfo<BitopFn>(BitXor32, "BitXor32");
+static const VMFunction BitLhsInfo = FunctionInfo<BitopFn>(BitLsh32, "BitLsh32");
+static const VMFunction BitRhsInfo = FunctionInfo<BitopFn>(BitRsh32, "BitRsh32");
 
 void
 CodeGenerator::visitBitOpV(LBitOpV* lir)

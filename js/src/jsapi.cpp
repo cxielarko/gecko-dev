@@ -88,6 +88,7 @@
 #include "vm/String.h"
 #include "vm/StringBuffer.h"
 #include "vm/Symbol.h"
+#include "vm/BigInt.h"
 #include "vm/WrapperObject.h"
 #include "vm/Xdr.h"
 #include "wasm/AsmJS.h"

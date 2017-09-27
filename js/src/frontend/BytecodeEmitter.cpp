@@ -3109,6 +3109,7 @@ BytecodeEmitter::checkSideEffects(ParseNode* pn, bool* answer)
       case PNK_ELISION:
       case PNK_GENERATOR:
       case PNK_NUMBER:
+      case PNK_BIGINT:
       case PNK_OBJECT_PROPERTY_NAME:
         MOZ_ASSERT(pn->isArity(PN_NULLARY));
         *answer = false;
@@ -4198,11 +4199,11 @@ BytecodeEmitter::emitNameIncDec(ParseNode* pn)
         JSAtom* name = pn->pn_kid->name();
         if (!bce->emitGetNameAtLocationForCompoundAssignment(name, loc)) // ENV? V
             return false;
-        if (!bce->emit1(JSOP_POS))                         // ENV? N
+        if (!bce->emit1(JSOP_NUMERIC_POS))                 // ENV? N
             return false;
         if (post && !bce->emit1(JSOP_DUP))                 // ENV? N? N
             return false;
-        if (!bce->emit1(JSOP_ONE))                         // ENV? N? N 1
+        if (!bce->emit1(JSOP_NUMERIC_ONE))                 // ENV? N? N 1
             return false;
         if (!bce->emit1(binop))                            // ENV? N? N+1
             return false;
@@ -6418,6 +6419,8 @@ ParseNode::getConstantValue(JSContext* cx, AllowConstantObjects allowObjects,
       case PNK_NUMBER:
         vp.setNumber(pn_dval);
         return true;
+      case PNK_BIGINT:
+        return false;
       case PNK_TEMPLATE_STRING:
       case PNK_STRING:
         vp.setString(pn_atom);
@@ -6959,6 +6962,14 @@ BytecodeEmitter::emitCopyDataProperties(CopyOption option)
 
     MOZ_ASSERT(depth - int(argc) == this->stackDepth);
     return true;
+}
+
+bool
+BytecodeEmitter::emitBigIntOp(BigInt* bigint)
+{
+    if (!constList.append(BigIntValue(bigint)))
+        return false;
+    return emitIndex32(JSOP_BIGINT, constList.length() - 1);
 }
 
 bool
@@ -11187,6 +11198,11 @@ BytecodeEmitter::emitTree(ParseNode* pn, ValueUsage valueUsage /* = ValueUsage::
 
       case PNK_NUMBER:
         if (!emitNumberOp(pn->pn_dval))
+            return false;
+        break;
+
+      case PNK_BIGINT:
+        if (!emitBigIntOp(pn->pn_bigint))
             return false;
         break;
 

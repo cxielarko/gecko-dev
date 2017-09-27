@@ -10358,6 +10358,9 @@ Parser<ParseHandler, CharT>::primaryExpr(YieldHandling yieldHandling,
       case TOK_NUMBER:
         return newNumber(tokenStream.currentToken());
 
+      case TOK_BIGINT:
+        return newBigInt(tokenStream.currentToken());
+
       case TOK_TRUE:
         return handler.newBooleanLiteral(true, pos());
       case TOK_FALSE:

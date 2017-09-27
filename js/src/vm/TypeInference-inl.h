@@ -214,6 +214,8 @@ PrimitiveTypeFlag(JSValueType type)
         return TYPE_FLAG_STRING;
       case JSVAL_TYPE_SYMBOL:
         return TYPE_FLAG_SYMBOL;
+      case JSVAL_TYPE_BIGINT:
+        return TYPE_FLAG_BIGINT;
       case JSVAL_TYPE_MAGIC:
         return TYPE_FLAG_LAZYARGS;
       default:
@@ -239,6 +241,8 @@ TypeFlagPrimitive(TypeFlags flags)
         return JSVAL_TYPE_STRING;
       case TYPE_FLAG_SYMBOL:
         return JSVAL_TYPE_SYMBOL;
+      case TYPE_FLAG_BIGINT:
+        return JSVAL_TYPE_BIGINT;
       case TYPE_FLAG_LAZYARGS:
         return JSVAL_TYPE_MAGIC;
       default:
@@ -1203,6 +1207,19 @@ inline bool
 JSScript::ensureHasTypes(JSContext* cx)
 {
     return types() || makeTypes(cx);
+}
+
+inline bool
+JSScript::hasBigIntType(JSContext* cx)
+{
+    if (!ensureHasTypes(cx))
+        return true;
+    for (size_t i = 0; i < nTypeSets(); i++) {
+        if (types()->typeArray()[i].hasType(js::TypeSet::BigIntType())) {
+            return true;
+        }
+    }
+    return false;
 }
 
 #endif /* vm_TypeInference_inl_h */

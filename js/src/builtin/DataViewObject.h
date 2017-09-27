@@ -128,6 +128,12 @@ class DataViewObject : public NativeObject
     static bool getUint32Impl(JSContext* cx, const CallArgs& args);
     static bool fun_getUint32(JSContext* cx, unsigned argc, Value* vp);
 
+    static bool getInt64Impl(JSContext* cx, const CallArgs& args);
+    static bool fun_getInt64(JSContext* cx, unsigned argc, Value* vp);
+
+    static bool getUint64Impl(JSContext* cx, const CallArgs& args);
+    static bool fun_getUint64(JSContext* cx, unsigned argc, Value* vp);
+
     static bool getFloat32Impl(JSContext* cx, const CallArgs& args);
     static bool fun_getFloat32(JSContext* cx, unsigned argc, Value* vp);
 
@@ -151,6 +157,12 @@ class DataViewObject : public NativeObject
 
     static bool setUint32Impl(JSContext* cx, const CallArgs& args);
     static bool fun_setUint32(JSContext* cx, unsigned argc, Value* vp);
+
+    static bool setInt64Impl(JSContext* cx, const CallArgs& args);
+    static bool fun_setInt64(JSContext* cx, unsigned argc, Value* vp);
+
+    static bool setUint64Impl(JSContext* cx, const CallArgs& args);
+    static bool fun_setUint64(JSContext* cx, unsigned argc, Value* vp);
 
     static bool setFloat32Impl(JSContext* cx, const CallArgs& args);
     static bool fun_setFloat32(JSContext* cx, unsigned argc, Value* vp);

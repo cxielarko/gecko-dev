@@ -239,6 +239,7 @@
 #include "vm/Shape.h"
 #include "vm/String.h"
 #include "vm/Symbol.h"
+#include "vm/BigInt.h"
 #include "vm/Time.h"
 #include "vm/TraceLogging.h"
 #include "vm/WrapperObject.h"
@@ -462,7 +463,8 @@ static const FinalizePhase BackgroundFinalizePhases[] = {
             AllocKind::EXTERNAL_STRING,
             AllocKind::FAT_INLINE_ATOM,
             AllocKind::ATOM,
-            AllocKind::SYMBOL
+            AllocKind::SYMBOL,
+            AllocKind::BIGINT
         }
     },
     {
@@ -8168,6 +8170,8 @@ JS::GCCellPtr::GCCellPtr(const Value& v)
         ptr = checkedCast(&v.toObject(), JS::TraceKind::Object);
     else if (v.isSymbol())
         ptr = checkedCast(v.toSymbol(), JS::TraceKind::Symbol);
+    else if (v.isBigInt())
+        ptr = checkedCast(v.toBigInt(), JS::TraceKind::BigInt);
     else if (v.isPrivateGCThing())
         ptr = checkedCast(v.toGCThing(), v.toGCThing()->getTraceKind());
     else
