@@ -2650,7 +2650,7 @@ SetDenseOrTypedArrayElement(JSContext* cx, HandleNativeObject obj, uint32_t inde
 {
     if (obj->is<TypedArrayObject>()) {
         RootedValue numericVal(cx, v);
-        if (!ToNumeric(cx, &numericVal))
+        if (!obj->as<TypedArrayObject>().convert(cx, &numericVal))
             return false;
 
         // Silently do nothing for out-of-bounds sets, for consistency with

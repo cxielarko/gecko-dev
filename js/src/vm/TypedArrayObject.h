@@ -264,6 +264,8 @@ class TypedArrayObject : public NativeObject
         return buffer->isDetached();
     }
 
+    bool convert(JSContext* cx, MutableHandleValue v) const;
+
   private:
     void* viewDataEither_() const {
         // Note, do not check whether shared or not

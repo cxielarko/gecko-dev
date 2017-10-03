@@ -396,12 +396,12 @@ class ElementSpecific
 
             SharedMem<T*> dest = target->viewDataEither().template cast<T*>() + offset;
 
-            MOZ_ASSERT(!canConvertInfallibly(MagicValue(JS_ELEMENTS_HOLE)),
+            MOZ_ASSERT(!canConvertInfallibly(MagicValue(JS_ELEMENTS_HOLE), target->type()),
                        "the following loop must abort on holes");
 
             const Value* srcValues = source->as<NativeObject>().getDenseElements();
             for (; i < bound; i++) {
-                if (!canConvertInfallibly(srcValues[i]))
+                if (!canConvertInfallibly(srcValues[i], target->type()))
                     break;
                 Ops::store(dest + i, infallibleValueToNative(srcValues[i]));
             }
@@ -455,7 +455,7 @@ class ElementSpecific
 
         const Value* srcValues = source->getDenseElements();
         for (; i < len; i++) {
-            if (!canConvertInfallibly(srcValues[i]))
+            if (!canConvertInfallibly(srcValues[i], target->type()))
                 break;
             Ops::store(dest + i, infallibleValueToNative(srcValues[i]));
         }
@@ -598,8 +598,10 @@ class ElementSpecific
     }
 
     static bool
-    canConvertInfallibly(const Value& v)
+    canConvertInfallibly(const Value& v, Scalar::Type type)
     {
+        if (type == Scalar::BigInt64 || type == Scalar::BigUint64)
+            return false;
         return v.isNumber() || v.isBoolean() || v.isNull() || v.isUndefined();
     }
 
@@ -619,24 +621,7 @@ class ElementSpecific
         return TypeIsFloatingPoint<T>() ? T(JS::GenericNaN()) : T(0);
     }
 
-    static bool
-    valueToNative(JSContext* cx, HandleValue v, T* result)
-    {
-        MOZ_ASSERT(!v.isMagic());
-
-        if (MOZ_LIKELY(canConvertInfallibly(v))) {
-            *result = infallibleValueToNative(v);
-            return true;
-        }
-
-        double d;
-        MOZ_ASSERT(v.isString() || v.isObject() || v.isSymbol());
-        if (!(v.isString() ? StringToNumber(cx, v.toString(), &d) : ToNumber(cx, v, &d)))
-            return false;
-
-        *result = doubleToNative(d);
-        return true;
-    }
+    static bool valueToNative(JSContext* cx, HandleValue v, T* result);
 
     static T
     doubleToNative(double d)

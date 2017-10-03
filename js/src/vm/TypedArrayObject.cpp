@@ -70,6 +70,53 @@ using JS::ToUint32;
  * the subclasses.
  */
 
+template <typename T, typename Ops>
+bool
+ElementSpecific<T, Ops>::valueToNative(JSContext* cx, HandleValue v, T* result)
+{
+    MOZ_ASSERT(!v.isMagic());
+
+    if (std::is_same<T, int64_t>::value) {
+        RootedValue bi(cx);
+        if (!CallSelfHostedUnaryOperator(cx, "ToBigInt", v, &bi))
+            return false;
+        RootedValue res1(cx);
+        RootedValue res2(cx);
+        if (!CallSelfHostedUnaryOperator(cx, "BigIntToInt64Low", bi, &res1))
+            return false;
+        if (!CallSelfHostedUnaryOperator(cx, "BigIntToInt64High", bi, &res2))
+            return false;
+        int64_t n = res1.toInt32() | (static_cast<int64_t>(res2.toInt32()) << 32);
+        *result = T(n);
+        return true;
+    } else {
+        if (MOZ_LIKELY(canConvertInfallibly(v, TypeIDOfType<T>::id))) {
+            *result = infallibleValueToNative(v);
+            return true;
+        }
+
+        double d;
+        MOZ_ASSERT(v.isString() || v.isObject() || v.isSymbol());
+        if (!(v.isString() ? StringToNumber(cx, v.toString(), &d) : ToNumber(cx, v, &d)))
+            return false;
+        
+        *result = doubleToNative(d);
+        return true;
+    }
+}
+
+bool
+TypedArrayObject::convert(JSContext* cx, MutableHandleValue v) const
+{
+    switch (type()) {
+    case Scalar::BigInt64:
+    case Scalar::BigUint64:
+        return CallSelfHostedUnaryOperator(cx, "ToBigInt", v, v);
+    default:
+        return ToNumeric(cx, v); 
+    }
+}
+
 /* static */ int
 TypedArrayObject::lengthOffset()
 {
@@ -1473,6 +1520,7 @@ static inline bool
 SetFromTypedArray(Handle<TypedArrayObject*> target, Handle<TypedArrayObject*> source,
                   uint32_t offset)
 {
+    printf("SetFromTypedArray\n");
     // WARNING: |source| may be an unwrapped typed array from a different
     // compartment. Proceed with caution!
 
@@ -1486,6 +1534,7 @@ static inline bool
 SetFromNonTypedArray(JSContext* cx, Handle<TypedArrayObject*> target, HandleObject source,
                      uint32_t len, uint32_t offset)
 {
+    printf("SetFromNonTypedArray\n");
     MOZ_ASSERT(!source->is<TypedArrayObject>(), "use SetFromTypedArray");
 
     if (target->isSharedMemory())
@@ -2327,7 +2376,7 @@ js::DefineTypedArrayElement(JSContext* cx, HandleObject obj, uint64_t index,
 
         // Step 3.
         RootedValue numericValue(cx, desc.value());
-        if (!ToNumeric(cx, &numericValue))
+        if (!obj->as<TypedArrayObject>().convert(cx, &numericValue))
             return false;
 
         // Steps 4-5, 8-9.
