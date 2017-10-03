@@ -323,9 +323,6 @@ CanEnterBaselineJIT(JSContext* cx, HandleScript script, InterpreterFrame* osrFra
     if (script->hasBaselineScript())
         return Method_Compiled;
 
-    if (script->hasBigIntType(cx))
-        return Method_CantCompile;
-
     // Check this before calling ensureJitCompartmentExists, so we're less
     // likely to report OOM in JSRuntime::createJitRuntime.
     if (!CanLikelyAllocateMoreExecutableMemory())
