@@ -1356,6 +1356,8 @@ CacheIRCompiler::emitGuardType()
       case JSVAL_TYPE_NULL:
         masm.branchTestNull(Assembler::NotEqual, input, failure->label());
         break;
+      case JSVAL_TYPE_BIGINT:
+        return false;
       default:
         MOZ_CRASH("Unexpected type");
     }
