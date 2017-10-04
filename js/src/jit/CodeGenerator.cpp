@@ -12185,10 +12185,10 @@ CodeGenerator::visitIsTypedArray(LIsTypedArray* lir)
     Label done;
 
     static_assert(Scalar::Int8 == 0, "Int8 is the first typed array class");
-    static_assert((Scalar::Uint8Clamped - Scalar::Int8) == Scalar::MaxTypedArrayViewType - 1,
-                  "Uint8Clamped is the last typed array class");
+    static_assert((Scalar::BigUint64 - Scalar::Int8) == Scalar::MaxTypedArrayViewType - 1,
+                  "BigUint64 is the last typed array class");
     const Class* firstTypedArrayClass = TypedArrayObject::classForType(Scalar::Int8);
-    const Class* lastTypedArrayClass = TypedArrayObject::classForType(Scalar::Uint8Clamped);
+    const Class* lastTypedArrayClass = TypedArrayObject::classForType(Scalar::BigUint64);
 
     masm.loadObjClass(object, output);
     masm.branchPtr(Assembler::Below, output, ImmPtr(firstTypedArrayClass), &notTypedArray);

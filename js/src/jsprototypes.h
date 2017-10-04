@@ -99,11 +99,11 @@
     real(Uint16Array,           InitViaClassSpec,       TYPED_ARRAY_CLASP(Uint16)) \
     real(Int32Array,            InitViaClassSpec,       TYPED_ARRAY_CLASP(Int32)) \
     real(Uint32Array,           InitViaClassSpec,       TYPED_ARRAY_CLASP(Uint32)) \
-    real(BigInt64Array,         InitViaClassSpec,       TYPED_ARRAY_CLASP(BigInt64)) \
-    real(BigUint64Array,        InitViaClassSpec,       TYPED_ARRAY_CLASP(BigUint64)) \
     real(Float32Array,          InitViaClassSpec,       TYPED_ARRAY_CLASP(Float32))     \
     real(Float64Array,          InitViaClassSpec,       TYPED_ARRAY_CLASP(Float64)) \
     real(Uint8ClampedArray,     InitViaClassSpec,       TYPED_ARRAY_CLASP(Uint8Clamped)) \
+    real(BigInt64Array,         InitViaClassSpec,       TYPED_ARRAY_CLASP(BigInt64)) \
+    real(BigUint64Array,        InitViaClassSpec,       TYPED_ARRAY_CLASP(BigUint64)) \
 IF_BIGINT(real,imaginary)(BigInt, InitBigIntClass, OCLASP(BigInt)) \
     real(Proxy,                 InitProxyClass,         js::ProxyClassPtr) \
     real(WeakMap,               InitWeakMapClass,       OCLASP(WeakMap)) \

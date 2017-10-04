@@ -23,11 +23,11 @@
     macro(uint16_t, Uint16) \
     macro(int32_t, Int32) \
     macro(uint32_t, Uint32) \
-    macro(int64_t, BigInt64) \
-    macro(uint64_t, BigUint64) \
     macro(float, Float32) \
     macro(double, Float64) \
-    macro(uint8_clamped, Uint8Clamped)
+    macro(uint8_clamped, Uint8Clamped) \
+    macro(int64_t, BigInt64) \
+    macro(uint64_t, BigUint64)
 
 typedef struct JSProperty JSProperty;
 

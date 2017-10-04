@@ -1573,8 +1573,6 @@ enum Type {
     Uint16,
     Int32,
     Uint32,
-    BigInt64,
-    BigUint64,
     Float32,
     Float64,
 
@@ -1583,6 +1581,8 @@ enum Type {
      * Treat the raw data type as a uint8_t.
      */
     Uint8Clamped,
+    BigInt64,
+    BigUint64,
 
     /**
      * Types that don't have their own TypedArray equivalent, for now.
@@ -1790,6 +1790,12 @@ JS_NewInt32ArrayWithBuffer(JSContext* cx, JS::HandleObject arrayBuffer,
 extern JS_FRIEND_API(JSObject*)
 JS_NewUint32ArrayWithBuffer(JSContext* cx, JS::HandleObject arrayBuffer,
                             uint32_t byteOffset, int32_t length);
+extern JS_FRIEND_API(JSObject*)
+JS_NewBigInt64ArrayWithBuffer(JSContext* cx, JS::HandleObject arrayBuffer,
+                              uint32_t byteOffset, int32_t length);
+extern JS_FRIEND_API(JSObject*)
+JS_NewBigUint64ArrayWithBuffer(JSContext* cx, JS::HandleObject arrayBuffer,
+                               uint32_t byteOffset, int32_t length);
 extern JS_FRIEND_API(JSObject*)
 JS_NewFloat32ArrayWithBuffer(JSContext* cx, JS::HandleObject arrayBuffer,
                              uint32_t byteOffset, int32_t length);

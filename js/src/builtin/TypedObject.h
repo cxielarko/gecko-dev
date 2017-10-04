@@ -281,10 +281,10 @@ class ScalarTypeDescr : public SimpleTypeDescr
     macro_(Scalar::Uint16,  uint16_t, uint16)                   \
     macro_(Scalar::Int32,   int32_t,  int32)                    \
     macro_(Scalar::Uint32,  uint32_t, uint32)                   \
+    macro_(Scalar::Float32, float,    float32)                  \
+    macro_(Scalar::Float64, double,   float64)                  \
     macro_(Scalar::BigInt64, int64_t, bigint64)                 \
     macro_(Scalar::BigUint64, uint64_t, biguint64)              \
-    macro_(Scalar::Float32, float,    float32)                  \
-    macro_(Scalar::Float64, double,   float64)
 
 // Must be in same order as the enum ScalarTypeDescr::Type:
 #define JS_FOR_EACH_SCALAR_TYPE_REPR(macro_)                    \

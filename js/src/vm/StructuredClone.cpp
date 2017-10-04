@@ -1895,6 +1895,12 @@ JSStructuredCloneReader::readTypedArray(uint32_t arrayType, uint32_t nelems, Mut
       case Scalar::Uint32:
         obj = JS_NewUint32ArrayWithBuffer(context(), buffer, byteOffset, nelems);
         break;
+      case Scalar::BigInt64:
+        obj = JS_NewBigInt64ArrayWithBuffer(context(), buffer, byteOffset, nelems);
+        break;
+      case Scalar::BigUint64:
+        obj = JS_NewBigUint64ArrayWithBuffer(context(), buffer, byteOffset, nelems);
+        break;
       case Scalar::Float32:
         obj = JS_NewFloat32ArrayWithBuffer(context(), buffer, byteOffset, nelems);
         break;
@@ -2032,7 +2038,10 @@ JSStructuredCloneReader::readV1ArrayBuffer(uint32_t arrayType, uint32_t nelems,
       case Scalar::Float32:
         return in.readArray((uint32_t*) buffer.dataPointer(), nelems);
       case Scalar::Float64:
+      case Scalar::BigUint64:
         return in.readArray((uint64_t*) buffer.dataPointer(), nelems);
+      case Scalar::BigInt64:
+        return in.readArray((int64_t*) buffer.dataPointer(), nelems);
       default:
         MOZ_CRASH("Can't happen: arrayType range checked by caller");
     }
