@@ -4130,11 +4130,11 @@ BytecodeEmitter::emitPropIncDec(ParseNode* pn)
     }
     if (!emitAtomOp(pn->pn_kid, isSuper? JSOP_GETPROP_SUPER : JSOP_GETPROP)) // OBJ V
         return false;
-    if (!emit1(JSOP_POS))                           // OBJ N
+    if (!emit1(JSOP_NUMERIC_POS))                   // OBJ N
         return false;
     if (post && !emit1(JSOP_DUP))                   // OBJ N? N
         return false;
-    if (!emit1(JSOP_ONE))                           // OBJ N? N 1
+    if (!emit1(JSOP_NUMERIC_ONE))                   // OBJ N? N 1
         return false;
     if (!emit1(binop))                              // OBJ N? N+1
         return false;
@@ -4379,11 +4379,11 @@ BytecodeEmitter::emitElemIncDec(ParseNode* pn)
     }
     if (!emitElemOpBase(getOp))                         // OBJ KEY V
         return false;
-    if (!emit1(JSOP_POS))                               // OBJ KEY N
+    if (!emit1(JSOP_NUMERIC_POS))                       // OBJ KEY N
         return false;
     if (post && !emit1(JSOP_DUP))                       // OBJ KEY N? N
         return false;
-    if (!emit1(JSOP_ONE))                               // OBJ KEY N? N 1
+    if (!emit1(JSOP_NUMERIC_ONE))                       // OBJ KEY N? N 1
         return false;
     if (!emit1(binop))                                  // OBJ KEY N? N+1
         return false;
