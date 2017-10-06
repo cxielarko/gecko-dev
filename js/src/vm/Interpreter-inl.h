@@ -515,7 +515,7 @@ NegOperation(JSContext* cx, HandleScript script, jsbytecode* pc, HandleValue val
         if (numericVal.isNumber()) {
             res.setNumber(-numericVal.toNumber());
         } else {
-            return TryBigIntUnaryOperator(cx, "BigIntNeg", val, res);
+            return TryBigIntUnaryOperator(cx, "BigIntNeg", numericVal, res);
         }
     }
 
