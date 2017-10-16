@@ -274,7 +274,7 @@ function BigIntRsh(x, y)
 function BigIntTwosComplement(x)
 {
     if (BigIntSign(x)) {
-        return BigIntComplement(BigIntNeg(BigIntSubUnsigned(x, MakeOneBigInt())));
+        return BigIntSumUnsigned(BigIntComplement(x), MakeOneBigInt(), BigIntSign(x));
     } else {
         return x;
     }
@@ -282,11 +282,7 @@ function BigIntTwosComplement(x)
 
 function BigIntFromTwosComplement(x)
 {
-    if (BigIntSign(x)) {
-        return BigIntSumUnsigned(BigIntComplement(x), MakeOneBigInt(), BigIntSign(x));
-    } else {
-        return x;
-    }
+    return BigIntTwosComplement(x);
 }
 
 function BigIntTcDigit(x, i)
@@ -329,7 +325,7 @@ function BigIntBitXor(x, y)
 
 function BigIntBitNot(x)
 {
-    return BigIntFromTwosComplement(BigIntNeg(BigIntComplement(BigIntTwosComplement(x))));
+    return BigIntSub(BigIntNeg(x), MakeOneBigInt());
 }
 
 #define UINT32(x) ((x) >>> 0)
