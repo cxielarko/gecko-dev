@@ -476,14 +476,17 @@ template <>
 inline bool
 WebIDLCast<int64_t>(JSContext* cx, HandleValue value, int64_t* out)
 {
+    RootedValue bi(cx);
     RootedValue res1(cx);
     RootedValue res2(cx);
     AutoDisableCompactingGC nogc(cx);
-    if (!CallSelfHostedUnaryOperator(cx, "BigIntToInt64Low", value, &res1))
+    if (!CallSelfHostedUnaryOperator(cx, "ToBigInt", value, &bi))
         return false;
-    if (!CallSelfHostedUnaryOperator(cx, "BigIntToInt64High", value, &res2))
+    if (!CallSelfHostedUnaryOperator(cx, "BigIntToInt64Low", bi, &res1))
         return false;
-    *out = res1.toInt32() | (static_cast<int64_t>(res2.toInt32()) << 32);
+    if (!CallSelfHostedUnaryOperator(cx, "BigIntToInt64High", bi, &res2))
+        return false;
+    *out = static_cast<uint32_t>(res1.toInt32()) | (static_cast<uint64_t>(res2.toInt32()) << 32);
     return true;
 }
 
@@ -491,14 +494,17 @@ template <>
 inline bool
 WebIDLCast<uint64_t>(JSContext* cx, HandleValue value, uint64_t* out)
 {
+    RootedValue bi(cx);
     RootedValue res1(cx);
     RootedValue res2(cx);
     AutoDisableCompactingGC nogc(cx);
-    if (!CallSelfHostedUnaryOperator(cx, "BigIntToUint64Low", value, &res1))
+    if (!CallSelfHostedUnaryOperator(cx, "ToBigInt", value, &bi))
         return false;
-    if (!CallSelfHostedUnaryOperator(cx, "BigIntToUint64High", value, &res2))
+    if (!CallSelfHostedUnaryOperator(cx, "BigIntToUint64Low", bi, &res1))
         return false;
-    *out = res1.toInt32() | (static_cast<int64_t>(res2.toInt32()) << 32);
+    if (!CallSelfHostedUnaryOperator(cx, "BigIntToUint64High", bi, &res2))
+        return false;
+    *out = static_cast<uint32_t>(res1.toInt32()) | (static_cast<uint64_t>(res2.toInt32()) << 32);
     return true;
 }
 
@@ -1104,8 +1110,8 @@ const JSFunctionSpec DataViewObject::methods[] = {
     JS_FN("getUint16",  DataViewObject::fun_getUint16,    1,0),
     JS_FN("getInt32",   DataViewObject::fun_getInt32,     1,0),
     JS_FN("getUint32",  DataViewObject::fun_getUint32,    1,0),
-    JS_FN("getInt64",   DataViewObject::fun_getInt64,     1,0),
-    JS_FN("getUint64",  DataViewObject::fun_getUint64,    1,0),
+    JS_FN("getBigInt64", DataViewObject::fun_getInt64,    1,0),
+    JS_FN("getBigUint64", DataViewObject::fun_getUint64,  1,0),
     JS_FN("getFloat32", DataViewObject::fun_getFloat32,   1,0),
     JS_FN("getFloat64", DataViewObject::fun_getFloat64,   1,0),
     JS_FN("setInt8",    DataViewObject::fun_setInt8,      2,0),
@@ -1114,8 +1120,8 @@ const JSFunctionSpec DataViewObject::methods[] = {
     JS_FN("setUint16",  DataViewObject::fun_setUint16,    2,0),
     JS_FN("setInt32",   DataViewObject::fun_setInt32,     2,0),
     JS_FN("setUint32",  DataViewObject::fun_setUint32,    2,0),
-    JS_FN("setInt64",   DataViewObject::fun_setInt64,     2,0),
-    JS_FN("setUint64",  DataViewObject::fun_setUint64,    2,0),
+    JS_FN("setBigInt64", DataViewObject::fun_setInt64,    2,0),
+    JS_FN("setBigUint64", DataViewObject::fun_setUint64,  2,0),
     JS_FN("setFloat32", DataViewObject::fun_setFloat32,   2,0),
     JS_FN("setFloat64", DataViewObject::fun_setFloat64,   2,0),
     JS_FS_END
