@@ -543,14 +543,10 @@ function BigIntPowUnsigned(x, n)
 function BigIntConstructor(x)
 {
     x = ToPrimitiveHintNumber(x);
-    if (typeof x === "boolean") {
-        return x ? MakeOneBigInt() : MakeZeroBigInt();
-    } else if (typeof x === "string") {
-        return StringToBigInt(x);
-    } else if (typeof x === "number") {
+    if (typeof x === "number") {
         return NumberToBigInt(x);
     } else {
-        return MakeZeroBigInt();
+        return ToBigInt(x);
     }
 }
 
