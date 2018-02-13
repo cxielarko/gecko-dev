@@ -42,6 +42,11 @@ if CONFIG['ENABLE_INTL_API']:
             'icuuc',
         ]
 
+if CONFIG['ENABLE_BIGINT']:
+    OS_LIBS += [
+        'gmp',
+    ]
+
 USE_LIBS += [
     'nspr',
     'zlib',

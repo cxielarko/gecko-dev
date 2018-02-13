@@ -21,13 +21,17 @@
 
 #include "vm/String.h"
 
+#include <gmp.h>
+
 namespace JS {
 class BigInt : public js::gc::TenuredCell
 {
   private:
+    mpz_t num_;
+
     // The minimum allocation size is currently 16 bytes (see
     // SortedArenaList in jsgc.h).
-    uint8_t unused_[16];
+    uint8_t unused_[sizeof(mpz_t) < 16 ? 16 - sizeof(mpz_t) : 0];
 
     // Allocate and initialize a BigInt value
     static BigInt* New(JSContext* cx);
@@ -47,6 +51,8 @@ class BigInt : public js::gc::TenuredCell
 
     JSString* toString(JSContext* cx);
     bool toBoolean();
+
+    static void Init();
 
     static BigInt* Copy(JSContext* cx, HandleBigInt x);
 };

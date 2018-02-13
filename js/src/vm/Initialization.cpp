@@ -25,6 +25,9 @@
 #include "unicode/uclean.h"
 #include "unicode/utypes.h"
 #endif // ENABLE_INTL_API
+#ifdef ENABLE_BIGINT
+#include "vm/BigInt.h"
+#endif
 #include "vm/DateTime.h"
 #include "vm/HelperThreads.h"
 #include "vm/Runtime.h"
@@ -135,6 +138,10 @@ JS::detail::InitWithFailureDiagnostic(bool isDebugBuild)
 
 #ifdef JS_SIMULATOR
     RETURN_IF_FAIL(js::jit::SimulatorProcess::initialize());
+#endif
+
+#ifdef ENABLE_BIGINT
+    JS::BigInt::Init();
 #endif
 
     libraryInitState = InitState::Running;

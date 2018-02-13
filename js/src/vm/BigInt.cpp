@@ -14,7 +14,30 @@
 #include "vm/SelfHosting.h"
 #include "vm/BigInt.h"
 
+#include <gmp.h>
+#include <math.h>
+
 using namespace js;
+
+static void*
+js_mp_realloc(void* ptr, size_t old_size, size_t new_size)
+{
+    return js_realloc(ptr, new_size);
+}
+
+static void
+js_mp_free(void* ptr, size_t size)
+{
+    return js_free(ptr);
+}
+
+void
+BigInt::Init()
+{
+    mp_set_memory_functions(js_malloc,
+                            js_mp_realloc,
+                            js_mp_free);
+}
 
 BigInt*
 BigInt::New(JSContext* cx)
@@ -24,6 +47,7 @@ BigInt::New(JSContext* cx)
         ReportOutOfMemory(cx);
         return nullptr;
     }
+    mpz_init(x->num_);
     return x;
 }
 
@@ -33,13 +57,14 @@ BigInt::Copy(JSContext* cx, HandleBigInt x)
     BigInt* copy = New(cx);
     if (!copy)
         return nullptr;
+    mpz_set(copy->num_, x->num_);
     return copy;
 }
 
 void
 BigInt::finalize(js::FreeOp* fop)
 {
-    return;
+    mpz_clear(num_);
 }
 
 void
@@ -57,19 +82,25 @@ js::BigIntToObject(JSContext* cx, HandleBigInt x)
 JSString*
 BigInt::toString(JSContext* cx)
 {
-    return nullptr;
+    char* str = mpz_get_str(NULL, 10, num_);
+    if (!str)
+        return nullptr;
+    return JS_NewStringCopyZ(cx, mpz_get_str(NULL, 10, num_));
 }
 
 bool
 BigInt::toBoolean()
 {
-    return false;
+    return (mpz_sgn(num_) != 0);
 }
 
 js::HashNumber
 BigInt::hashValue()
 {
-    return 0;
+    const void* limbs = mpz_limbs_read(num_);
+    uint32_t hash = mozilla::HashBytes(limbs, mpz_size(num_));
+    hash = mozilla::AddToHash(hash, static_cast<uint32_t>(mpz_sgn(num_)));
+    return hash;
 }
 
 JS::ubi::Node::Size
