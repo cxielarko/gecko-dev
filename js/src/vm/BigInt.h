@@ -55,6 +55,10 @@ class BigInt : public js::gc::TenuredCell
     static void Init();
 
     static BigInt* Copy(JSContext* cx, HandleBigInt x);
+
+    static BigInt* NumberToBigInt(JSContext* cx, double d);
+    static bool ValueToBigInt(JSContext* cx, HandleValue val, MutableHandleValue res);
+    static JSString* ToString(JSContext* cx, HandleBigInt x, int radix);
 };
 }
 

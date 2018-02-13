@@ -35,6 +35,9 @@
 #include "jswin.h"
 #include "jswrapper.h"
 
+#ifdef ENABLE_BIGINT
+#include "builtin/BigIntObject.h"
+#endif
 #include "builtin/Eval.h"
 #include "builtin/Object.h"
 #include "builtin/SymbolObject.h"

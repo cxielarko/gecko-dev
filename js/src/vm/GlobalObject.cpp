@@ -15,6 +15,9 @@
 #include "jsprototypes.h"
 
 #include "builtin/AtomicsObject.h"
+#ifdef ENABLE_BIGINT
+#include "builtin/BigIntObject.h"
+#endif
 #include "builtin/DataViewObject.h"
 #include "builtin/Eval.h"
 #include "builtin/MapObject.h"

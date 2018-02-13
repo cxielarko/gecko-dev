@@ -436,6 +436,7 @@ SOURCES += [
 
 if CONFIG['ENABLE_BIGINT']:
     SOURCES += [
+        'builtin/BigIntObject.cpp',
         'vm/BigInt.cpp',
     ]
 

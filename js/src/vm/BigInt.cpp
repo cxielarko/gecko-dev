@@ -9,6 +9,7 @@
 
 #include "jsapi.h"
 #include "jscntxt.h"
+#include "builtin/BigIntObject.h"
 #include "gc/Allocator.h"
 #include "gc/Tracer.h"
 #include "vm/SelfHosting.h"
@@ -52,6 +53,25 @@ BigInt::New(JSContext* cx)
 }
 
 BigInt*
+BigInt::NumberToBigInt(JSContext* cx, double d)
+{
+    RootedBigInt z(cx, New(cx));
+    if (!z)
+        return nullptr;
+    double i = ToInteger(d);
+    if (!mozilla::IsFinite(d) ||
+        i != d ||
+        i > 9007199254740991 ||
+        i < -9007199254740991) {
+        JS_ReportErrorNumberASCII(cx, GetErrorMessage, nullptr,
+                                  JSMSG_NUMBER_TO_BIGINT);
+        return nullptr;
+    }
+    mpz_set_d(z->num_, i);
+    return z;
+}
+
+BigInt*
 BigInt::Copy(JSContext* cx, HandleBigInt x)
 {
     BigInt* copy = New(cx);
@@ -59,6 +79,29 @@ BigInt::Copy(JSContext* cx, HandleBigInt x)
         return nullptr;
     mpz_set(copy->num_, x->num_);
     return copy;
+}
+
+bool
+BigInt::ValueToBigInt(JSContext* cx, HandleValue val, MutableHandleValue res)
+{
+    RootedValue v(cx, val);
+    if (!ToPrimitive(cx, JSTYPE_NUMBER, &v))
+        return false;
+    if (v.isBigInt()) {
+        res.set(v);
+        return true;
+    }
+    JS_ReportErrorNumberASCII(cx, GetErrorMessage, nullptr, JSMSG_NOT_BIGINT);
+    return false;
+}
+
+JSString*
+BigInt::ToString(JSContext* cx, HandleBigInt x, int radix)
+{
+    char* str = mpz_get_str(NULL, radix, x->num_);
+    if (!str)
+        return nullptr;
+    return JS_NewStringCopyZ(cx, str);
 }
 
 void
@@ -76,7 +119,7 @@ BigInt::traceChildren(JSTracer* trc)
 JSObject*
 js::BigIntToObject(JSContext* cx, HandleBigInt x)
 {
-    return nullptr;
+    return BigIntObject::create(cx, x);
 }
 
 JSString*
