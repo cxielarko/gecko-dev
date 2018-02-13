@@ -46,6 +46,9 @@
 #include "js/UbiNode.h"
 #include "js/UniquePtr.h"
 #include "vm/ArgumentsObject.h"
+#ifdef ENABLE_BIGINT
+#include "vm/BigInt.h"
+#endif
 #include "vm/Interpreter.h"
 #include "vm/ProxyObject.h"
 #include "vm/RegExpStaticsObject.h"
@@ -3204,9 +3207,19 @@ js::PrimitiveToObject(JSContext* cx, const Value& v)
         return NumberObject::create(cx, v.toNumber());
     if (v.isBoolean())
         return BooleanObject::create(cx, v.toBoolean());
+#ifdef ENABLE_BIGINT
+    if (v.isSymbol()) {
+        RootedSymbol symbol(cx, v.toSymbol());
+        return SymbolObject::create(cx, symbol);
+    }
+    MOZ_ASSERT(v.isBigInt());
+    RootedBigInt bigInt(cx, v.toBigInt());
+    return BigIntToObject(cx, bigInt);
+#else
     MOZ_ASSERT(v.isSymbol());
     RootedSymbol symbol(cx, v.toSymbol());
     return SymbolObject::create(cx, symbol);
+#endif
 }
 
 /*

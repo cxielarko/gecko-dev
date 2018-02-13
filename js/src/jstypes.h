@@ -226,4 +226,10 @@
 # define JS_EXTENSION_(s) s
 #endif
 
+#ifdef ENABLE_BIGINT
+#define IF_BIGINT(x, y) x
+#else
+#define IF_BIGINT(x, y) y
+#endif
+
 #endif /* jstypes_h */

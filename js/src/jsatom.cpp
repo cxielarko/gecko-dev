@@ -604,6 +604,17 @@ ToAtomSlow(JSContext* cx, typename MaybeRooted<Value, allowGC>::HandleType arg)
         }
         return nullptr;
     }
+#ifdef ENABLE_BIGINT
+    if (v.isBigInt()) {
+        MOZ_ASSERT(!cx->helperThread());
+        if (!allowGC)
+            return nullptr;
+        JSString* str = v.toBigInt()->toString(cx);
+        if (!str)
+            return nullptr;
+        return AtomizeString(cx, str);
+    }
+#endif
     MOZ_ASSERT(v.isUndefined());
     return cx->names().undefined;
 }

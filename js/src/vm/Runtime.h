@@ -41,6 +41,9 @@
 #include "js/UniquePtr.h"
 #include "js/Vector.h"
 #include "threading/Thread.h"
+#ifdef ENABLE_BIGINT
+#include "vm/BigInt.h"
+#endif
 #include "vm/Caches.h"
 #include "vm/CodeCoverage.h"
 #include "vm/CommonPropertyNames.h"

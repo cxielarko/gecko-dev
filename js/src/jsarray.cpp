@@ -1263,7 +1263,8 @@ ArrayJoinDenseKernel(JSContext* cx, SeparatorOp sepOp, HandleNativeObject obj, u
         } else if (elem.isBoolean()) {
             if (!BooleanToStringBuffer(elem.toBoolean(), sb))
                 return false;
-        } else if (elem.isObject() || elem.isSymbol()) {
+        } else if (elem.isObject() || elem.isSymbol() ||
+                   IF_BIGINT(elem.isBigInt(), false)) {
             /*
              * Object stringifying could modify the initialized length or make
              * the array sparse. Delegate it to a separate loop to keep this

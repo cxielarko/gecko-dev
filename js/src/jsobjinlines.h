@@ -19,6 +19,9 @@
 #include "gc/Allocator.h"
 #include "gc/FreeOp.h"
 #include "vm/ArrayObject.h"
+#ifdef ENABLE_BIGINT
+#include "vm/BigInt.h"
+#endif
 #include "vm/DateObject.h"
 #include "vm/EnvironmentObject.h"
 #include "vm/NumberObject.h"

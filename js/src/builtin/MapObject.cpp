@@ -60,7 +60,8 @@ HashableValue::setValue(JSContext* cx, HandleValue v)
     }
 
     MOZ_ASSERT(value.isUndefined() || value.isNull() || value.isBoolean() || value.isNumber() ||
-               value.isString() || value.isSymbol() || value.isObject());
+               value.isString() || value.isSymbol() || value.isObject() ||
+               IF_BIGINT(value.isBigInt(), false));
     return true;
 }
 
@@ -80,6 +81,10 @@ HashValue(const Value& v, const mozilla::HashCodeScrambler& hcs)
         return v.toString()->asAtom().hash();
     if (v.isSymbol())
         return v.toSymbol()->hash();
+#ifdef ENABLE_BIGINT
+    if (v.isBigInt())
+        return v.toBigInt()->hashValue();
+#endif
     if (v.isObject())
         return hcs.scramble(v.asRawBits());
 
@@ -99,12 +104,21 @@ HashableValue::operator==(const HashableValue& other) const
     // Two HashableValues are equal if they have equal bits.
     bool b = (value.asRawBits() == other.value.asRawBits());
 
+#ifdef ENABLE_BIGINT
+    if (!b && (value.isBigInt() && other.value.isBigInt())) {
+        JSContext* cx = TlsContext.get();
+        RootedValue valueRoot(cx, value);
+        RootedValue otherRoot(cx, other.value);
+        SameValue(cx, valueRoot, otherRoot, &b);
+    }
+#endif
+
 #ifdef DEBUG
     bool same;
     JSContext* cx = TlsContext.get();
     RootedValue valueRoot(cx, value);
     RootedValue otherRoot(cx, other.value);
-    MOZ_ASSERT(SameValue(nullptr, valueRoot, otherRoot, &same));
+    MOZ_ASSERT(SameValue(cx, valueRoot, otherRoot, &same));
     MOZ_ASSERT(same == b);
 #endif
     return b;

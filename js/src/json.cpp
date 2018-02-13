@@ -253,6 +253,11 @@ PreprocessValue(JSContext* cx, HandleObject holder, KeyType key, MutableHandleVa
                 return false;
         }
     }
+#ifdef ENABLE_BIGINT
+    else if (vp.isBigInt()) {
+        return false;
+    }
+#endif
 
     /* Step 3. */
     if (scx->replacer && scx->replacer->isCallable()) {
@@ -587,6 +592,13 @@ Str(JSContext* cx, const Value& v, StringifyContext* scx)
 
         return NumberValueToStringBuffer(cx, v, scx->sb);
     }
+
+#ifdef ENABLE_BIGINT
+    if (v.isBigInt()) {
+        JS_ReportErrorNumberASCII(cx, GetErrorMessage, nullptr, JSMSG_BIGINT_NOT_SERIALIZABLE);
+        return false;
+    }
+#endif
 
     /* Step 10. */
     MOZ_ASSERT(v.isObject());

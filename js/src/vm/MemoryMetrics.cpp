@@ -21,6 +21,9 @@
 #include "vm/Shape.h"
 #include "vm/String.h"
 #include "vm/Symbol.h"
+#ifdef ENABLE_BIGINT
+#include "vm/BigInt.h"
+#endif
 #include "vm/WrapperObject.h"
 #include "wasm/WasmInstance.h"
 #include "wasm/WasmJS.h"
@@ -553,6 +556,12 @@ StatsCellCallback(JSRuntime* rt, void* data, void* thing, JS::TraceKind traceKin
       case JS::TraceKind::Symbol:
         zStats->symbolsGCHeap += thingSize;
         break;
+
+#ifdef ENABLE_BIGINT
+      case JS::TraceKind::BigInt:
+        zStats->bigIntsGCHeap += thingSize;
+        break;
+#endif
 
       case JS::TraceKind::BaseShape: {
         JS::ShapeInfo info;        // This zeroes all the sizes.

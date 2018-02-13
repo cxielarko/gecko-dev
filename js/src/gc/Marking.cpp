@@ -29,6 +29,9 @@
 #include "vm/Scope.h"
 #include "vm/Shape.h"
 #include "vm/Symbol.h"
+#ifdef ENABLE_BIGINT
+#include "vm/BigInt.h"
+#endif
 #include "vm/TypedArrayObject.h"
 #include "vm/UnboxedObject.h"
 #include "wasm/WasmJS.h"
@@ -923,6 +926,9 @@ template <> void GCMarker::traverse(JSObject* thing) { markAndPush(thing); }
 template <> void GCMarker::traverse(ObjectGroup* thing) { markAndPush(thing); }
 template <> void GCMarker::traverse(jit::JitCode* thing) { markAndPush(thing); }
 template <> void GCMarker::traverse(JSScript* thing) { markAndPush(thing); }
+#ifdef ENABLE_BIGINT
+template <> void GCMarker::traverse(BigInt* thing) { markAndPush(thing); }
+#endif
 } // namespace js
 
 namespace js {
@@ -1659,7 +1665,8 @@ ObjectDenseElementsMayBeMarkable(NativeObject* nobj)
         return true;
 
     static const uint32_t flagMask =
-        TYPE_FLAG_STRING | TYPE_FLAG_SYMBOL | TYPE_FLAG_LAZYARGS | TYPE_FLAG_ANYOBJECT;
+        TYPE_FLAG_STRING | TYPE_FLAG_SYMBOL | TYPE_FLAG_LAZYARGS | TYPE_FLAG_ANYOBJECT |
+        IF_BIGINT(TYPE_FLAG_BIGINT, 0);
     bool mayBeMarkable = typeSet->hasAnyFlag(flagMask) || typeSet->getObjectCount() != 0;
 
 #ifdef DEBUG
@@ -1737,6 +1744,13 @@ GCMarker::processMarkStackTop(SliceBudget& budget)
         return;
       }
 
+#ifdef ENABLE_BIGINT
+      case MarkStack::BigIntTag: {
+        auto bigInt = stack.popPtr().as<BigInt>();
+        return bigInt->traceChildren(this);
+      }
+#endif
+
       default: MOZ_CRASH("Invalid tag in mark stack");
     }
     return;
@@ -1773,6 +1787,10 @@ GCMarker::processMarkStackTop(SliceBudget& budget)
             }
         } else if (v.isSymbol()) {
             traverseEdge(obj, v.toSymbol());
+#ifdef ENABLE_BIGINT
+        } else if (v.isBigInt()) {
+            traverseEdge(obj, v.toBigInt());
+#endif
         } else if (v.isPrivateGCThing()) {
             // v.toGCCellPtr cannot be inlined, so construct one manually.
             Cell* cell = v.toGCThing();
@@ -1969,6 +1987,10 @@ template <>
 struct MapTypeToMarkStackTag<jit::JitCode*> { static const auto value = MarkStack::JitCodeTag; };
 template <>
 struct MapTypeToMarkStackTag<JSScript*> { static const auto value = MarkStack::ScriptTag; };
+#ifdef ENABLE_BIGINT
+template <>
+struct MapTypeToMarkStackTag<BigInt*> { static const auto value = MarkStack::BigIntTag; };
+#endif
 
 static inline bool
 TagIsArrayTag(MarkStack::Tag tag)

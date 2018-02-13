@@ -78,6 +78,9 @@ class MarkStack
         SavedValueArrayTag,
         JitCodeTag,
         ScriptTag,
+#ifdef ENABLE_BIGINT
+        BigIntTag,
+#endif
         TempRopeTag,
 
         LastTag = TempRopeTag

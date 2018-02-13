@@ -1610,9 +1610,22 @@ js::ToNumberSlow(JSContext* cx, HandleValue v_, double* out)
         return false;
     }
 
+#ifdef ENABLE_BIGINT
+    if (v.isUndefined()) {
+        *out = GenericNaN();
+        return true;
+    }
+    MOZ_ASSERT(v.isBigInt());
+    if (!cx->helperThread()) {
+        JS_ReportErrorNumberASCII(cx, GetErrorMessage, nullptr,
+                                  JSMSG_BIGINT_TO_NUMBER);
+    }
+    return false;
+#else
     MOZ_ASSERT(v.isUndefined());
     *out = GenericNaN();
     return true;
+#endif
 }
 
 /*

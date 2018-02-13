@@ -20,6 +20,9 @@
 
 #include "vm/Shape.h"
 #include "vm/Symbol.h"
+#ifdef ENABLE_BIGINT
+#include "vm/BigInt.h"
+#endif
 
 #include "jscompartmentinlines.h"
 #include "jsgcinlines.h"
@@ -384,6 +387,12 @@ JS_GetTraceThingInfo(char* buf, size_t bufsize, JSTracer* trc, void* thing,
       case JS::TraceKind::Symbol:
         name = "symbol";
         break;
+
+#ifdef ENABLE_BIGINT
+      case JS::TraceKind::BigInt:
+        name = "BigInt";
+        break;
+#endif
 
       default:
         name = "INVALID";

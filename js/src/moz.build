@@ -434,6 +434,11 @@ SOURCES += [
     'vm/Interpreter.cpp',
 ]
 
+if CONFIG['ENABLE_BIGINT']:
+    SOURCES += [
+        'vm/BigInt.cpp',
+    ]
+
 if CONFIG['JS_POSIX_NSPR']:
     UNIFIED_SOURCES += [
         'vm/PosixNSPR.cpp',
