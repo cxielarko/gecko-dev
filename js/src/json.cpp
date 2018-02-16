@@ -255,7 +255,20 @@ PreprocessValue(JSContext* cx, HandleObject holder, KeyType key, MutableHandleVa
     }
 #ifdef ENABLE_BIGINT
     else if (vp.isBigInt()) {
-        return false;
+        RootedValue toJSON(cx);
+        RootedObject obj(cx, PrimitiveToObject(cx, vp));
+        if (!GetProperty(cx, obj, obj, cx->names().toJSON, &toJSON))
+            return false;
+
+        if (IsCallable(toJSON)) {
+            keyStr = KeyStringifier<KeyType>::toString(cx, key);
+            if (!keyStr)
+                return false;
+
+            RootedValue arg0(cx, StringValue(keyStr));
+            if (!js::Call(cx, toJSON, vp, arg0, vp))
+                return false;
+        }
     }
 #endif
 
