@@ -187,6 +187,48 @@ js::atomics_compareExchange(JSContext* cx, unsigned argc, Value* vp)
     uint32_t offset;
     if (!GetTypedArrayIndex(cx, idxv, view, &offset))
         return false;
+
+#ifdef ENABLE_BIGINT
+    if (view->type() == Scalar::BigInt64) {
+        RootedValue noldv(cx, oldv);
+        if (!ToNumeric(cx, &noldv))
+            return false;
+        if (!noldv.isBigInt())
+            return false;
+        RootedBigInt oldbi(cx, noldv.toBigInt());
+        RootedValue nnewv(cx, newv);
+        if (!ToNumeric(cx, &nnewv))
+            return false;
+        if (!nnewv.isBigInt())
+            return false;
+        RootedBigInt newbi(cx, nnewv.toBigInt());
+        SharedMem<void*> viewData = view->viewDataShared();
+        if (view->type() == Scalar::BigInt64) {
+            int64_t oldi64, newi64;
+            if (!BigInt::ToInt64(cx, oldbi, oldi64))
+                return false;
+            if (!BigInt::ToInt64(cx, newbi, newi64))
+                return false;
+            oldi64 = jit::AtomicOperations::compareExchangeSeqCst(viewData.cast<int64_t*>() + offset,
+                                                                  oldi64, newi64);
+            oldbi = BigInt::FromInt64(cx, oldi64);
+        } else {
+            MOZ_ASSERT(view->type() == Scalar::BigUint64);
+            uint64_t oldu64, newu64;
+            if (!BigInt::ToUint64(cx, oldbi, oldu64))
+                return false;
+            if (!BigInt::ToUint64(cx, newbi, newu64))
+                return false;
+            oldu64 = jit::AtomicOperations::compareExchangeSeqCst(viewData.cast<uint64_t*>() + offset,
+                                                                  oldu64, newu64);
+            oldbi = BigInt::FromUint64(cx, oldu64);
+        }
+        if (!oldbi)
+            return false;
+        r.setBigInt(oldbi);
+    }
+#endif
+
     int32_t oldCandidate;
     if (!ToInt32(cx, oldv, &oldCandidate))
         return false;
@@ -255,6 +297,24 @@ js::atomics_load(JSContext* cx, unsigned argc, Value* vp)
         r.setNumber(v);
         return true;
       }
+#ifdef ENABLE_BIGINT
+      case Scalar::BigInt64: {
+          int64_t v = jit::AtomicOperations::loadSeqCst(viewData.cast<int64_t*>() + offset);
+          BigInt* bi = BigInt::FromInt64(cx, v);
+          if (!bi)
+              return false;
+          r.setBigInt(bi);
+          return true;
+      }
+      case Scalar::BigUint64: {
+          uint64_t v = jit::AtomicOperations::loadSeqCst(viewData.cast<uint64_t*>() + offset);
+          BigInt* bi = BigInt::FromUint64(cx, v);
+          if (!bi)
+              return false;
+          r.setBigInt(bi);
+          return true;
+      }
+#endif
       default:
         return ReportBadArrayType(cx);
     }
@@ -333,6 +393,50 @@ ExchangeOrStore(JSContext* cx, unsigned argc, Value* vp)
     uint32_t offset;
     if (!GetTypedArrayIndex(cx, idxv, view, &offset))
         return false;
+
+#ifdef ENABLE_BIGINT
+    if (view->type() == Scalar::BigInt64 || view->type() == Scalar::BigUint64) {
+        RootedValue nvalv(cx, valv);
+        if (!ToNumeric(cx, &nvalv))
+            return false;
+        if (!nvalv.isBigInt())
+            return false;
+        RootedBigInt biv(cx, nvalv.toBigInt());
+        SharedMem<void*> viewData = view->viewDataShared();
+        BigInt* bi;
+        if (view->type() == Scalar::BigInt64) {
+            int64_t i64;
+            if (!BigInt::ToInt64(cx, biv, i64))
+                return false;
+            if (op == DoStore) {
+                jit::AtomicOperations::storeSeqCst(viewData.cast<int64_t*>() + offset, i64);
+            } else {
+                i64 = jit::AtomicOperations::exchangeSeqCst(viewData.cast<int64_t*>() + offset, i64);
+                bi = BigInt::FromInt64(cx, i64);
+            }
+        } else {
+            MOZ_ASSERT(view->type() == Scalar::BigUint64);
+            uint64_t u64;
+            if (!BigInt::ToUint64(cx, biv, u64))
+                return false;
+            if (op == DoStore) {
+                jit::AtomicOperations::storeSeqCst(viewData.cast<uint64_t*>() + offset, u64);
+            } else {
+                u64 = jit::AtomicOperations::exchangeSeqCst(viewData.cast<uint64_t*>() + offset, u64);
+                bi = BigInt::FromUint64(cx, u64);
+            }
+        }
+        if (op == DoStore) {
+            r.setBigInt(biv);
+        } else {
+            if (!bi)
+                return false;
+            r.setBigInt(bi);
+        }
+        return true;
+    }
+#endif
+
     double integerValue;
     if (!ToInteger(cx, valv, &integerValue))
         return false;
@@ -376,6 +480,36 @@ AtomicsBinop(JSContext* cx, HandleValue objv, HandleValue idxv, HandleValue valv
     uint32_t offset;
     if (!GetTypedArrayIndex(cx, idxv, view, &offset))
         return false;
+
+#ifdef ENABLE_BIGINT
+    if (view->type() == Scalar::BigInt64 || view->type() == Scalar::BigUint64) {
+        RootedValue nvalv(cx, valv);
+        if (!ToNumeric(cx, &nvalv))
+            return false;
+        if (!nvalv.isBigInt())
+            return false;
+        RootedBigInt biv(cx, nvalv.toBigInt());
+        SharedMem<void*> viewData = view->viewDataShared();
+        BigInt* bi;
+        if (view->type() == Scalar::BigInt64) {
+            int64_t i64;
+            if (!BigInt::ToInt64(cx, biv, i64))
+                return false;
+            bi = BigInt::FromInt64(cx, T::operate(viewData.cast<int64_t*>() + offset, i64));
+        } else {
+            MOZ_ASSERT(view->type() == Scalar::BigUint64);
+            uint64_t u64;
+            if (!BigInt::ToUint64(cx, biv, u64))
+                return false;
+            bi = BigInt::FromUint64(cx, T::operate(viewData.cast<uint64_t*>() + offset, u64));
+        }
+        if (!bi)
+            return false;
+        r.setBigInt(bi);
+        return true;
+    }
+#endif
+
     int32_t numberValue;
     if (!ToInt32(cx, valv, &numberValue))
         return false;
@@ -417,6 +551,17 @@ AtomicsBinop(JSContext* cx, HandleValue objv, HandleValue idxv, HandleValue valv
     }
 }
 
+#ifdef ENABLE_BIGINT
+#define INTEGRAL_TYPES_FOR_EACH(NAME) \
+    static int8_t operate(SharedMem<int8_t*> addr, int8_t v) { return NAME(addr, v); } \
+    static uint8_t operate(SharedMem<uint8_t*> addr, uint8_t v) { return NAME(addr, v); } \
+    static int16_t operate(SharedMem<int16_t*> addr, int16_t v) { return NAME(addr, v); } \
+    static uint16_t operate(SharedMem<uint16_t*> addr, uint16_t v) { return NAME(addr, v); } \
+    static int32_t operate(SharedMem<int32_t*> addr, int32_t v) { return NAME(addr, v); } \
+    static uint32_t operate(SharedMem<uint32_t*> addr, uint32_t v) { return NAME(addr, v); } \
+    static int64_t operate(SharedMem<int64_t*> addr, int64_t v) { return NAME(addr, v); } \
+    static uint64_t operate(SharedMem<uint64_t*> addr, uint64_t v) { return NAME(addr, v); }
+#else
 #define INTEGRAL_TYPES_FOR_EACH(NAME) \
     static int8_t operate(SharedMem<int8_t*> addr, int8_t v) { return NAME(addr, v); } \
     static uint8_t operate(SharedMem<uint8_t*> addr, uint8_t v) { return NAME(addr, v); } \
@@ -424,6 +569,7 @@ AtomicsBinop(JSContext* cx, HandleValue objv, HandleValue idxv, HandleValue valv
     static uint16_t operate(SharedMem<uint16_t*> addr, uint16_t v) { return NAME(addr, v); } \
     static int32_t operate(SharedMem<int32_t*> addr, int32_t v) { return NAME(addr, v); } \
     static uint32_t operate(SharedMem<uint32_t*> addr, uint32_t v) { return NAME(addr, v); }
+#endif
 
 class PerformAdd
 {
@@ -643,14 +789,40 @@ js::atomics_wait(JSContext* cx, unsigned argc, Value* vp)
     Rooted<TypedArrayObject*> view(cx, nullptr);
     if (!GetSharedTypedArray(cx, objv, &view))
         return false;
+#ifdef ENABLE_BIGINT
+    bool isInt32 = false;
+    if (view->type() == Scalar::Int32)
+        isInt32 = true;
+    else if (view->type() != Scalar::BigInt64)
+        return ReportBadArrayType(cx);
+#else
     if (view->type() != Scalar::Int32)
         return ReportBadArrayType(cx);
+#endif
     uint32_t offset;
     if (!GetTypedArrayIndex(cx, idxv, view, &offset))
         return false;
+#ifdef ENABLE_BIGINT
+    int32_t value;
+    int64_t value64;
+    if (isInt32) {
+        if (!ToInt32(cx, valv, &value))
+            return false;
+    } else {
+        RootedValue nvalv(cx, valv);
+        if (!ToNumeric(cx, &nvalv))
+            return false;
+        if (!nvalv.isBigInt())
+            return false;
+        RootedBigInt bi(cx, nvalv.toBigInt());
+        if (!BigInt::ToInt64(cx, bi, value64))
+            return false;
+    }
+#else
     int32_t value;
     if (!ToInt32(cx, valv, &value))
         return false;
+#endif
     mozilla::Maybe<mozilla::TimeDuration> timeout;
     if (!timeoutv.isUndefined()) {
         double timeout_ms;
@@ -667,11 +839,28 @@ js::atomics_wait(JSContext* cx, unsigned argc, Value* vp)
     Rooted<SharedArrayBufferObject*> sab(cx, view->bufferShared());
     // The computation will not overflow because range checks have been
     // performed.
-    uint32_t byteOffset = offset * sizeof(int32_t) +
-                          (view->viewDataShared().cast<uint8_t*>().unwrap(/* arithmetic */) -
-                           sab->dataPointerShared().unwrap(/* arithmetic */));
+    uint32_t byteOffset;
+#ifdef ENABLE_BIGINT
+    size_t elementSize = isInt32 ? sizeof(int32_t) : sizeof(int64_t);
+    byteOffset = offset * elementSize +
+        (view->viewDataShared().cast<uint8_t*>().unwrap(/* arithmetic */) -
+         sab->dataPointerShared().unwrap(/* arithmetic */));
+#else
+    byteOffset = offset * sizeof(int32_t) +
+        (view->viewDataShared().cast<uint8_t*>().unwrap(/* arithmetic */) -
+         sab->dataPointerShared().unwrap(/* arithmetic */));
+#endif
 
-    switch (atomics_wait_impl(cx, sab->rawBufferObject(), byteOffset, value, timeout)) {
+    FutexThread::WaitResult waitResult;
+#ifdef ENABLE_BIGINT
+    if (isInt32)
+        waitResult = atomics_wait_impl(cx, sab->rawBufferObject(), byteOffset, value, timeout);
+    else
+        waitResult = atomics_wait_impl(cx, sab->rawBufferObject(), byteOffset, value64, timeout);
+#else
+    waitResult = atomics_wait_impl(cx, sab->rawBufferObject(), byteOffset, value, timeout);
+#endif
+    switch (waitResult) {
       case FutexThread::WaitResult::NotEqual:
         r.setString(cx->names().futexNotEqual);
         return true;
@@ -734,8 +923,16 @@ js::atomics_wake(JSContext* cx, unsigned argc, Value* vp)
     Rooted<TypedArrayObject*> view(cx, nullptr);
     if (!GetSharedTypedArray(cx, objv, &view))
         return false;
+#ifdef ENABLE_BIGINT
+    bool isInt32 = false;
+    if (view->type() == Scalar::Int32)
+        isInt32 = true;
+    else if (view->type() != Scalar::BigInt64)
+        return ReportBadArrayType(cx);
+#else
     if (view->type() != Scalar::Int32)
         return ReportBadArrayType(cx);
+#endif
     uint32_t offset;
     if (!GetTypedArrayIndex(cx, idxv, view, &offset))
         return false;
@@ -754,10 +951,17 @@ js::atomics_wake(JSContext* cx, unsigned argc, Value* vp)
     Rooted<SharedArrayBufferObject*> sab(cx, view->bufferShared());
     // The computation will not overflow because range checks have been
     // performed.
-    uint32_t byteOffset = offset * sizeof(int32_t) +
-                          (view->viewDataShared().cast<uint8_t*>().unwrap(/* arithmetic */) -
-                           sab->dataPointerShared().unwrap(/* arithmetic */));
-
+    uint32_t byteOffset;
+#ifdef ENABLE_BIGINT
+    size_t elementSize = isInt32 ? sizeof(int32_t) : sizeof(int64_t);
+    byteOffset = offset * elementSize +
+        (view->viewDataShared().cast<uint8_t*>().unwrap(/* arithmetic */) -
+         sab->dataPointerShared().unwrap(/* arithmetic */));
+#else
+    byteOffset = offset * sizeof(int32_t) +
+        (view->viewDataShared().cast<uint8_t*>().unwrap(/* arithmetic */) -
+         sab->dataPointerShared().unwrap(/* arithmetic */));
+#endif
     r.setNumber(double(atomics_wake_impl(sab->rawBufferObject(), byteOffset, count)));
 
     return true;
