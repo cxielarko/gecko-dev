@@ -32,6 +32,7 @@
 #include "gc/Nursery-inl.h"
 #include "gc/StoreBuffer-inl.h"
 #include "vm/ArrayBufferObject-inl.h"
+#include "vm/Interpreter-inl.h"
 #include "vm/NativeObject-inl.h"
 
 using namespace js;
@@ -368,6 +369,8 @@ template <> struct DataToRepType<int16_t>  { typedef uint16_t result; };
 template <> struct DataToRepType<uint16_t> { typedef uint16_t result; };
 template <> struct DataToRepType<int32_t>  { typedef uint32_t result; };
 template <> struct DataToRepType<uint32_t> { typedef uint32_t result; };
+template <> struct DataToRepType<int64_t>  { typedef uint64_t result; };
+template <> struct DataToRepType<uint64_t> { typedef uint64_t result; };
 template <> struct DataToRepType<float>    { typedef uint32_t result; };
 template <> struct DataToRepType<double>   { typedef uint64_t result; };
 
@@ -467,6 +470,38 @@ WebIDLCast(JSContext* cx, HandleValue value, NativeType* out)
     *out = static_cast<NativeType>(temp);
     return true;
 }
+
+#ifdef ENABLE_BIGINT
+template <>
+inline bool
+WebIDLCast<int64_t>(JSContext* cx, HandleValue value, int64_t* out)
+{
+    RootedValue biv(cx);
+    if (!BigInt::ValueToBigInt(cx, value, &biv))
+        return false;
+    RootedBigInt bi(cx, biv.toBigInt());
+    int64_t n;
+    if (!BigInt::ToInt64(cx, bi, n))
+        return false;
+    *out = n;
+    return true;
+}
+
+template <>
+inline bool
+WebIDLCast<uint64_t>(JSContext* cx, HandleValue value, uint64_t* out)
+{
+    RootedValue biv(cx);
+    if (!BigInt::ValueToBigInt(cx, value, &biv))
+        return false;
+    RootedBigInt bi(cx, biv.toBigInt());
+    uint64_t n;
+    if (!BigInt::ToUint64(cx, bi, n))
+        return false;
+    *out = n;
+    return true;
+}
+#endif
 
 template <>
 inline bool
@@ -662,6 +697,58 @@ DataViewObject::fun_getUint32(JSContext* cx, unsigned argc, Value* vp)
     return CallNonGenericMethod<is, getUint32Impl>(cx, args);
 }
 
+#ifdef ENABLE_BIGINT
+bool
+DataViewObject::getInt64Impl(JSContext* cx, const CallArgs& args)
+{
+    MOZ_ASSERT(is(args.thisv()));
+
+    Rooted<DataViewObject*> thisView(cx, &args.thisv().toObject().as<DataViewObject>());
+
+    int64_t val;
+    if (!read(cx, thisView, args, &val))
+        return false;
+
+    RootedBigInt bi(cx, BigInt::FromInt64(cx, val));
+    if (!bi)
+        return false;
+    args.rval().setBigInt(bi);
+    return true;
+}
+
+bool
+DataViewObject::fun_getInt64(JSContext* cx, unsigned argc, Value* vp)
+{
+    CallArgs args = CallArgsFromVp(argc, vp);
+    return CallNonGenericMethod<is, getInt64Impl>(cx, args);
+}
+
+bool
+DataViewObject::getUint64Impl(JSContext* cx, const CallArgs& args)
+{
+    MOZ_ASSERT(is(args.thisv()));
+
+    Rooted<DataViewObject*> thisView(cx, &args.thisv().toObject().as<DataViewObject>());
+
+    int64_t val;
+    if (!read(cx, thisView, args, &val))
+        return false;
+
+    RootedBigInt bi(cx, BigInt::FromUint64(cx, val));
+    if (!bi)
+        return false;
+    args.rval().setBigInt(bi);
+    return true;
+}
+
+bool
+DataViewObject::fun_getUint64(JSContext* cx, unsigned argc, Value* vp)
+{
+    CallArgs args = CallArgsFromVp(argc, vp);
+    return CallNonGenericMethod<is, getUint64Impl>(cx, args);
+}
+#endif
+
 bool
 DataViewObject::getFloat32Impl(JSContext* cx, const CallArgs& args)
 {
@@ -826,6 +913,48 @@ DataViewObject::fun_setUint32(JSContext* cx, unsigned argc, Value* vp)
     return CallNonGenericMethod<is, setUint32Impl>(cx, args);
 }
 
+#ifdef ENABLE_BIGINT
+bool
+DataViewObject::setInt64Impl(JSContext* cx, const CallArgs& args)
+{
+    MOZ_ASSERT(is(args.thisv()));
+
+    Rooted<DataViewObject*> thisView(cx, &args.thisv().toObject().as<DataViewObject>());
+
+    if (!write<int64_t>(cx, thisView, args))
+        return false;
+    args.rval().setUndefined();
+    return true;
+}
+
+bool
+DataViewObject::fun_setInt64(JSContext* cx, unsigned argc, Value* vp)
+{
+    CallArgs args = CallArgsFromVp(argc, vp);
+    return CallNonGenericMethod<is, setInt64Impl>(cx, args);
+}
+
+bool
+DataViewObject::setUint64Impl(JSContext* cx, const CallArgs& args)
+{
+    MOZ_ASSERT(is(args.thisv()));
+
+    Rooted<DataViewObject*> thisView(cx, &args.thisv().toObject().as<DataViewObject>());
+
+    if (!write<uint64_t>(cx, thisView, args))
+        return false;
+    args.rval().setUndefined();
+    return true;
+}
+
+bool
+DataViewObject::fun_setUint64(JSContext* cx, unsigned argc, Value* vp)
+{
+    CallArgs args = CallArgsFromVp(argc, vp);
+    return CallNonGenericMethod<is, setUint64Impl>(cx, args);
+}
+#endif
+
 bool
 DataViewObject::setFloat32Impl(JSContext* cx, const CallArgs& args)
 {
@@ -984,6 +1113,10 @@ const JSFunctionSpec DataViewObject::methods[] = {
     JS_FN("getUint16",  DataViewObject::fun_getUint16,    1,0),
     JS_FN("getInt32",   DataViewObject::fun_getInt32,     1,0),
     JS_FN("getUint32",  DataViewObject::fun_getUint32,    1,0),
+#ifdef ENABLE_BIGINT
+    JS_FN("getBigInt64", DataViewObject::fun_getInt64,    1,0),
+    JS_FN("getBigUint64", DataViewObject::fun_getUint64,  1,0),
+#endif
     JS_FN("getFloat32", DataViewObject::fun_getFloat32,   1,0),
     JS_FN("getFloat64", DataViewObject::fun_getFloat64,   1,0),
     JS_FN("setInt8",    DataViewObject::fun_setInt8,      2,0),
@@ -992,6 +1125,10 @@ const JSFunctionSpec DataViewObject::methods[] = {
     JS_FN("setUint16",  DataViewObject::fun_setUint16,    2,0),
     JS_FN("setInt32",   DataViewObject::fun_setInt32,     2,0),
     JS_FN("setUint32",  DataViewObject::fun_setUint32,    2,0),
+#ifdef ENABLE_BIGINT
+    JS_FN("setBigInt64", DataViewObject::fun_setInt64,    2,0),
+    JS_FN("setBigUint64", DataViewObject::fun_setUint64,  2,0),
+#endif
     JS_FN("setFloat32", DataViewObject::fun_setFloat32,   2,0),
     JS_FN("setFloat64", DataViewObject::fun_setFloat64,   2,0),
     JS_FS_END
