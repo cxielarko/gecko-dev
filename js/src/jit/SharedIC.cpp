@@ -2218,7 +2218,11 @@ ICTypeMonitor_Fallback::addMonitorStubForValue(JSContext* cx, BaselineFrame* fra
     bool wasDetachedMonitorChain = lastMonitorStubPtrAddr_ == nullptr;
     MOZ_ASSERT_IF(wasDetachedMonitorChain, numOptimizedMonitorStubs_ == 0);
 
-    if (types->unknown()) {
+    if (types->unknown()
+#ifdef ENABLE_BIGINT
+        || val.isBigInt()
+#endif
+        ) {
         // The TypeSet got marked as unknown so attach a stub that always
         // succeeds.
 
@@ -2593,7 +2597,11 @@ ICUpdatedStub::addUpdateStubForValue(JSContext* cx, HandleScript outerScript, Ha
         return true;
     }
 
-    if (unknown) {
+    if (unknown
+#ifdef ENABLE_BIGINT
+        || val.isBigInt()
+#endif
+        ) {
         // Attach a stub that always succeeds. We should not have a
         // TypeUpdate_AnyValue stub yet.
         MOZ_ASSERT(!hasTypeUpdateStub(TypeUpdate_AnyValue));

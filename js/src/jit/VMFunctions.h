@@ -946,6 +946,14 @@ CloseIteratorFromIon(JSContext* cx, JSObject* obj);
 
 extern const VMFunction SetObjectElementInfo;
 
+#ifdef ENABLE_BIGINT
+bool
+ValueToBoolean(JSContext* cx, HandleValue v, int32_t* result);
+
+JSString*
+TypeOfValue(JSContext* cx, HandleValue v, JSRuntime* rt);
+#endif
+
 } // namespace jit
 } // namespace js
 

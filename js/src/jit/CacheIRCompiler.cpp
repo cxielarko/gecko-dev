@@ -1402,6 +1402,10 @@ CacheIRCompiler::emitGuardType()
       case JSVAL_TYPE_NULL:
         masm.branchTestNull(Assembler::NotEqual, input, failure->label());
         break;
+#ifdef ENABLE_BIGINT
+      case JSVAL_TYPE_BIGINT:
+        return false;
+#endif
       default:
         MOZ_CRASH("Unexpected type");
     }

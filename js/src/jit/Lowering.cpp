@@ -728,6 +728,10 @@ LIRGenerator::visitTest(MTest* test)
 
     if (opd->type() == MIRType::Value) {
         LDefinition temp0, temp1;
+#ifdef ENABLE_BIGINT
+        temp0 = temp();
+        temp1 = temp();
+#else
         if (test->operandMightEmulateUndefined()) {
             temp0 = temp();
             temp1 = temp();
@@ -735,9 +739,13 @@ LIRGenerator::visitTest(MTest* test)
             temp0 = LDefinition::BogusTemp();
             temp1 = LDefinition::BogusTemp();
         }
+#endif
         LTestVAndBranch* lir =
             new(alloc()) LTestVAndBranch(ifTrue, ifFalse, useBox(opd), tempDouble(), temp0, temp1);
         add(lir, test);
+#ifdef ENABLE_BIGINT
+        assignSafepoint(lir, test);
+#endif
         return;
     }
 
@@ -1227,6 +1235,7 @@ LIRGenerator::visitTypeOf(MTypeOf* ins)
 
     LTypeOfV* lir = new(alloc()) LTypeOfV(useBox(opd), tempToUnbox());
     define(lir, ins);
+    assignSafepoint(lir, ins);
 }
 
 void
@@ -3115,6 +3124,10 @@ LIRGenerator::visitNot(MNot* ins)
         break;
       case MIRType::Value: {
         LDefinition temp0, temp1;
+#ifdef ENABLE_BIGINT
+        temp0 = temp();
+        temp1 = temp();
+#else
         if (ins->operandMightEmulateUndefined()) {
             temp0 = temp();
             temp1 = temp();
@@ -3122,9 +3135,13 @@ LIRGenerator::visitNot(MNot* ins)
             temp0 = LDefinition::BogusTemp();
             temp1 = LDefinition::BogusTemp();
         }
+#endif
 
         LNotV* lir = new(alloc()) LNotV(useBox(op), tempDouble(), temp0, temp1);
         define(lir, ins);
+#ifdef ENABLE_BIGINT
+        assignSafepoint(lir, ins);
+#endif
         break;
       }
 

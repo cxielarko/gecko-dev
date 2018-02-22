@@ -716,8 +716,15 @@ CodeGenerator::testObjectEmulatesUndefined(Register objreg,
     masm.jump(ifDoesntEmulateUndefined);
 }
 
+#ifdef ENABLE_BIGINT
+typedef bool (*ValueToBooleanFn)(JSContext*, HandleValue, int32_t*);
+static const VMFunction ValueToBooleanInfo =
+    FunctionInfo<ValueToBooleanFn>(ValueToBoolean, "ValueToBoolean");
+#endif
+
 void
-CodeGenerator::testValueTruthyKernel(const ValueOperand& value,
+CodeGenerator::testValueTruthyKernel(LInstruction *lir,
+                                     const ValueOperand& value,
                                      const LDefinition* scratch1, const LDefinition* scratch2,
                                      FloatRegister fr,
                                      Label* ifTruthy, Label* ifFalsy,
@@ -740,6 +747,14 @@ CodeGenerator::testValueTruthyKernel(const ValueOperand& value,
     int tagCount = int(mightBeUndefined) + int(mightBeNull) +
         int(mightBeBoolean) + int(mightBeInt32) + int(mightBeObject) +
         int(mightBeString) + int(mightBeSymbol) + int(mightBeDouble);
+
+#ifdef ENABLE_BIGINT
+    bool mightBeUnknown = false;
+    if (valueMIR->type() == MIRType::Value || tagCount == 0) {
+        mightBeUnknown = true;
+        tagCount++;
+    }
+#endif
 
     MOZ_ASSERT_IF(!valueMIR->emptyResultTypeSet(), tagCount > 0);
 
@@ -838,6 +853,32 @@ CodeGenerator::testValueTruthyKernel(const ValueOperand& value,
         --tagCount;
     }
 
+#ifdef ENABLE_BIGINT
+    if (mightBeDouble) {
+        MOZ_ASSERT(tagCount != 0);
+        Label notDouble;
+        if (tagCount != 1)
+            masm.branchTestDouble(Assembler::NotEqual, tag, &notDouble);
+        masm.unboxDouble(value, fr);
+        masm.branchTestDoubleTruthy(false, fr, ifFalsy);
+        if (tagCount != 1)
+            masm.jump(ifTruthy);
+        masm.bind(&notDouble);
+        --tagCount;
+    }
+
+    if (mightBeUnknown) {
+        MOZ_ASSERT(tagCount == 1);
+        Register output = ToRegister(scratch1);
+        OutOfLineCode* oolToBoolean = oolCallVM(ValueToBooleanInfo, lir,
+                                                ArgList(value),
+                                                StoreRegisterTo(output));
+        masm.jump(oolToBoolean->entry());
+        masm.bind(oolToBoolean->rejoin());
+        masm.branchTest32(Assembler::Zero, output, output, ifFalsy);
+        --tagCount;
+    }
+#else
     if (mightBeDouble) {
         MOZ_ASSERT(tagCount == 1);
         // If we reach here the value is a double.
@@ -845,6 +886,7 @@ CodeGenerator::testValueTruthyKernel(const ValueOperand& value,
         masm.branchTestDoubleTruthy(false, fr, ifFalsy);
         --tagCount;
     }
+#endif
 
     MOZ_ASSERT(tagCount == 0);
 
@@ -852,14 +894,15 @@ CodeGenerator::testValueTruthyKernel(const ValueOperand& value,
 }
 
 void
-CodeGenerator::testValueTruthy(const ValueOperand& value,
+CodeGenerator::testValueTruthy(LInstruction* lir,
+                               const ValueOperand& value,
                                const LDefinition* scratch1, const LDefinition* scratch2,
                                FloatRegister fr,
                                Label* ifTruthy, Label* ifFalsy,
                                OutOfLineTestObject* ool,
                                MDefinition* valueMIR)
 {
-    testValueTruthyKernel(value, scratch1, scratch2, fr, ifTruthy, ifFalsy, ool, valueMIR);
+    testValueTruthyKernel(lir, value, scratch1, scratch2, fr, ifTruthy, ifFalsy, ool, valueMIR);
     masm.jump(ifTruthy);
 }
 
@@ -905,7 +948,8 @@ CodeGenerator::visitTestVAndBranch(LTestVAndBranch* lir)
     Label* truthy = getJumpLabelForBranch(lir->ifTruthy());
     Label* falsy = getJumpLabelForBranch(lir->ifFalsy());
 
-    testValueTruthy(ToValue(lir, LTestVAndBranch::Input),
+    testValueTruthy(lir,
+                    ToValue(lir, LTestVAndBranch::Input),
                     lir->temp1(), lir->temp2(),
                     ToFloatRegister(lir->tempFloat()),
                     truthy, falsy, ool, input);
@@ -8536,7 +8580,8 @@ CodeGenerator::visitNotV(LNotV* lir)
         ifFalsy = ifFalsyLabel.ptr();
     }
 
-    testValueTruthyKernel(ToValue(lir, LNotV::Input), lir->temp1(), lir->temp2(),
+    testValueTruthyKernel(lir,
+                          ToValue(lir, LNotV::Input), lir->temp1(), lir->temp2(),
                           ToFloatRegister(lir->tempFloat()),
                           ifTruthy, ifFalsy, ool, operand);
 
@@ -10677,6 +10722,12 @@ class OutOfLineTypeOfV : public OutOfLineCodeBase<CodeGenerator>
     }
 };
 
+#ifdef ENABLE_BIGINT
+typedef JSString* (*TypeOfValueFn)(JSContext*, HandleValue, JSRuntime*);
+static const VMFunction TypeOfValueInfo =
+    FunctionInfo<TypeOfValueFn>(TypeOfValue, "TypeOfValue");
+#endif
+
 void
 CodeGenerator::visitTypeOfV(LTypeOfV* lir)
 {
@@ -10699,6 +10750,14 @@ CodeGenerator::visitTypeOfV(LTypeOfV* lir)
 
     unsigned numTests = unsigned(testObject) + unsigned(testNumber) + unsigned(testBoolean) +
         unsigned(testUndefined) + unsigned(testNull) + unsigned(testString) + unsigned(testSymbol);
+
+#ifdef ENABLE_BIGINT
+    bool mightBeUnknown;
+    if (input->type() == MIRType::Value) {
+        mightBeUnknown = true;
+        numTests++;
+    }
+#endif
 
     MOZ_ASSERT_IF(!input->emptyResultTypeSet(), numTests > 0);
 
@@ -10793,6 +10852,18 @@ CodeGenerator::visitTypeOfV(LTypeOfV* lir)
         masm.bind(&notSymbol);
         numTests--;
     }
+
+#ifdef ENABLE_BIGINT
+    if (mightBeUnknown) {
+        MOZ_ASSERT(numTests == 1);
+        OutOfLineCode* oolTypeOfV = oolCallVM(TypeOfValueInfo, lir,
+                                              ArgList(value, ImmPtr(gen->runtime)),
+                                              StoreRegisterTo(output));
+        masm.jump(oolTypeOfV->entry());
+        masm.bind(oolTypeOfV->rejoin());
+        --numTests;
+    }
+#endif
 
     MOZ_ASSERT(numTests == 0);
 

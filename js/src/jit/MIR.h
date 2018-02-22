@@ -15206,6 +15206,10 @@ MIRTypeForTypedArrayRead(Scalar::Type arrayType, bool observedDouble)
         return MIRType::Float32;
       case Scalar::Float64:
         return MIRType::Double;
+#ifdef ENABLE_BIGINT
+      case Scalar::BigInt64:
+      case Scalar::BigUint64:
+#endif
       default:
         break;
     }

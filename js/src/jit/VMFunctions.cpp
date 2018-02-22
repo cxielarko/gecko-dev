@@ -1913,5 +1913,20 @@ typedef bool (*SetObjectElementFn)(JSContext*, HandleObject, HandleValue,
 const VMFunction SetObjectElementInfo =
     FunctionInfo<SetObjectElementFn>(js::SetObjectElement, "SetObjectElement");
 
+#ifdef ENABLE_BIGINT
+bool
+ValueToBoolean(JSContext* cx, HandleValue v, int32_t* result)
+{
+    *result = JS::ToBoolean(v);
+    return true;
+}
+
+JSString*
+TypeOfValue(JSContext* cx, HandleValue v, JSRuntime* rt)
+{
+    return TypeName(js::TypeOfValue(v), *rt->commonNames);
+}
+#endif
+
 } // namespace jit
 } // namespace js

@@ -510,7 +510,8 @@ class CodeGenerator final : public CodeGeneratorSpecific
     // choose to let control flow fall through when the object is truthy, as
     // an optimization. Use testValueTruthy when it's required to branch to one
     // of the two labels.
-    void testValueTruthyKernel(const ValueOperand& value,
+    void testValueTruthyKernel(LInstruction* lir,
+                               const ValueOperand& value,
                                const LDefinition* scratch1, const LDefinition* scratch2,
                                FloatRegister fr,
                                Label* ifTruthy, Label* ifFalsy,
@@ -522,7 +523,8 @@ class CodeGenerator final : public CodeGeneratorSpecific
     // non-null; otherwise it may be null (and the scratch definitions should
     // be bogus), in which case an object encountered here will always be
     // truthy.
-    void testValueTruthy(const ValueOperand& value,
+    void testValueTruthy(LInstruction* lir,
+                         const ValueOperand& value,
                          const LDefinition* scratch1, const LDefinition* scratch2,
                          FloatRegister fr,
                          Label* ifTruthy, Label* ifFalsy,

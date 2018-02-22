@@ -393,6 +393,10 @@ CodeGeneratorShared::verifyHeapAccessDisassembly(uint32_t begin, uint32_t end, b
         op = OtherOperand(ToFloatRegister(alloc).encoding());
         break;
       case Scalar::Uint8Clamped:
+#ifdef ENABLE_BIGINT
+      case Scalar::BigInt64:
+      case Scalar::BigUint64:
+#endif
       case Scalar::MaxTypedArrayViewType:
         MOZ_CRASH("Unexpected array type");
     }

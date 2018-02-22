@@ -741,6 +741,10 @@ ScalarTypeToMIRType(Scalar::Type type)
         return MIRType::Int16x8;
       case Scalar::Int32x4:
         return MIRType::Int32x4;
+#ifdef ENABLE_BIGINT
+      case Scalar::BigInt64:
+      case Scalar::BigUint64:
+#endif
       case Scalar::MaxTypedArrayViewType:
         break;
     }
@@ -769,6 +773,10 @@ ScalarTypeToLength(Scalar::Type type)
         return 8;
       case Scalar::Int8x16:
         return 16;
+#ifdef ENABLE_BIGINT
+      case Scalar::BigInt64:
+      case Scalar::BigUint64:
+#endif
       case Scalar::MaxTypedArrayViewType:
         break;
     }

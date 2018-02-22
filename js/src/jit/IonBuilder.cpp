@@ -7367,6 +7367,10 @@ IonBuilder::getStaticName(bool* emitted, JSObject* staticObject, PropertyName* n
         // Try to inline properties that have never been overwritten.
         Value constantValue;
         if (property.constant(constraints(), &constantValue)) {
+#ifdef ENABLE_BIGINT
+            if (constantValue.isBigInt())
+                return abort(AbortReason::Disable, "constant BigInt");
+#endif
             pushConstant(constantValue);
             return Ok();
         }
@@ -7959,6 +7963,11 @@ IonBuilder::pushScalarLoadFromTypedObject(MDefinition* obj,
     TemporaryTypeSet* resultTypes = bytecodeTypes(pc);
     bool allowDouble = resultTypes->hasType(TypeSet::DoubleType());
 
+#ifdef ENABLE_BIGINT
+    if (resultTypes->hasType(TypeSet::BigIntType()))
+        return abort(AbortReason::Disable, "possible BigInt value");
+#endif
+
     // Note: knownType is not necessarily in resultTypes; e.g. if we
     // have only observed integers coming out of float array.
     MIRType knownType = MIRTypeForTypedArrayRead(elemType, allowDouble);
@@ -8205,6 +8214,11 @@ IonBuilder::getStaticTypedArrayObject(MDefinition* obj, MDefinition* index)
         trackOptimizationOutcome(TrackedOutcome::AccessNotTypedArray);
         return nullptr;
     }
+
+#ifdef ENABLE_BIGINT
+    if (arrayType == Scalar::BigInt64 || arrayType == Scalar::BigUint64)
+        return nullptr;
+#endif
 
     if (!LIRGenerator::allowStaticTypedArrayAccesses()) {
         trackOptimizationOutcome(TrackedOutcome::Disabled);
@@ -8813,6 +8827,13 @@ IonBuilder::jsop_getelem_typed(MDefinition* obj, MDefinition* index,
 {
     TemporaryTypeSet* types = bytecodeTypes(pc);
 
+#ifdef ENABLE_BIGINT
+    if (types->hasType(TypeSet::BigIntType()) ||
+        arrayType == Scalar::BigInt64 ||
+        arrayType == Scalar::BigUint64)
+        return abort(AbortReason::Disable, "possible BigInt value");
+#endif
+
     bool maybeUndefined = types->hasType(TypeSet::UndefinedType());
 
     // Reading from an Uint32Array will result in a double for values
@@ -9381,6 +9402,13 @@ AbortReasonOr<Ok>
 IonBuilder::jsop_setelem_typed(Scalar::Type arrayType,
                                MDefinition* obj, MDefinition* id, MDefinition* value)
 {
+#ifdef ENABLE_BIGINT
+    if (value->type() == MIRType::Value ||
+        arrayType == Scalar::BigInt64 ||
+        arrayType == Scalar::BigUint64)
+        return abort(AbortReason::Disable, "possible BigInt value");
+#endif
+
     SetElemICInspector icInspect(inspector->setElemICInspector(pc));
     bool expectOOB = icInspect.sawOOBTypedArrayWrite();
 
@@ -10532,6 +10560,12 @@ IonBuilder::getPropTryInferredConstant(bool* emitted, MDefinition* obj, Property
 
     Value constantValue = UndefinedValue();
     if (property.constant(constraints(), &constantValue)) {
+#ifdef ENABLE_BIGINT
+        if (constantValue.isBigInt()) {
+            trackOptimizationOutcome(TrackedOutcome::GenericFailure);
+            return Ok();
+        }
+#endif
         spew("Optimized constant property");
         obj->setImplicitlyUsedUnchecked();
         pushConstant(constantValue);
@@ -12570,6 +12604,7 @@ AbortReasonOr<Ok>
 IonBuilder::jsop_typeof()
 {
     MDefinition* input = current->pop();
+
     MTypeOf* ins = MTypeOf::New(alloc(), input, input->type());
 
     ins->cacheInputMaybeCallableOrEmulatesUndefined(constraints());

@@ -397,6 +397,12 @@ MacroAssembler::loadFromTypedArray(Scalar::Type arrayType, const T& src, AnyRegi
         MOZ_ASSERT(numElems == 8, "unexpected partial load");
         loadUnalignedSimd128Int(src, dest.fpu());
         break;
+#ifdef ENABLE_BIGINT
+      case Scalar::BigInt64:
+      case Scalar::BigUint64:
+        jump(fail);
+        break;
+#endif
       default:
         MOZ_CRASH("Invalid typed array type");
     }
@@ -459,6 +465,12 @@ MacroAssembler::loadFromTypedArray(Scalar::Type arrayType, const T& src, const V
                            nullptr);
         boxDouble(ScratchDoubleReg, dest, ScratchDoubleReg);
         break;
+#ifdef ENABLE_BIGINT
+      case Scalar::BigInt64:
+      case Scalar::BigUint64:
+        jump(fail);
+        break;
+#endif
       default:
         MOZ_CRASH("Invalid typed array type");
     }

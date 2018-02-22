@@ -613,6 +613,10 @@ MacroAssembler::wasmLoad(const wasm::MemoryAccessDesc& access, Operand srcAddr, 
       case Scalar::Int64:
         MOZ_CRASH("int64 loads must use load64");
       case Scalar::Uint8Clamped:
+#ifdef ENABLE_BIGINT
+      case Scalar::BigInt64:
+      case Scalar::BigUint64:
+#endif
       case Scalar::MaxTypedArrayViewType:
         MOZ_CRASH("unexpected array type");
     }
@@ -660,6 +664,10 @@ MacroAssembler::wasmLoadI64(const wasm::MemoryAccessDesc& access, Operand srcAdd
       case Scalar::Int32x4:
         MOZ_CRASH("non-int64 loads should use load()");
       case Scalar::Uint8Clamped:
+#ifdef ENABLE_BIGINT
+      case Scalar::BigInt64:
+      case Scalar::BigUint64:
+#endif
       case Scalar::MaxTypedArrayViewType:
         MOZ_CRASH("unexpected array type");
     }
@@ -725,6 +733,10 @@ MacroAssembler::wasmStore(const wasm::MemoryAccessDesc& access, AnyRegister valu
         storeUnalignedSimd128Int(value.fpu(), dstAddr);
         break;
       case Scalar::Uint8Clamped:
+#ifdef ENABLE_BIGINT
+      case Scalar::BigInt64:
+      case Scalar::BigUint64:
+#endif
       case Scalar::MaxTypedArrayViewType:
         MOZ_CRASH("unexpected array type");
     }

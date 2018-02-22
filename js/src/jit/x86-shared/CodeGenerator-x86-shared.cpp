@@ -402,6 +402,10 @@ CodeGeneratorX86Shared::visitOutOfLineLoadTypedArrayOutOfBounds(OutOfLineLoadTyp
       case Scalar::Int8x16:
       case Scalar::Int16x8:
       case Scalar::Int32x4:
+#ifdef ENABLE_BIGINT
+      case Scalar::BigInt64:
+      case Scalar::BigUint64:
+#endif
       case Scalar::MaxTypedArrayViewType:
         MOZ_CRASH("unexpected array type");
       case Scalar::Float32:

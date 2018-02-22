@@ -1036,6 +1036,10 @@ StoreToTypedArray(JSContext* cx, MacroAssembler& masm, Scalar::Type type,
         } else {
             masm.jump(failure);
         }
+#ifdef ENABLE_BIGINT
+    } else if (type == Scalar::BigInt64 || type == Scalar::BigUint64) {
+        masm.jump(failure);
+#endif
     } else {
         Label notInt32;
         masm.branchTestInt32(Assembler::NotEqual, value, &notInt32);

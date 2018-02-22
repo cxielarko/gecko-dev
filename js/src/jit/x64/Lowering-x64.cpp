@@ -242,6 +242,10 @@ LIRGeneratorX64::visitWasmStore(MWasmStore* ins)
         valueAlloc = useRegisterAtStart(value);
         break;
       case Scalar::Uint8Clamped:
+#ifdef ENABLE_BIGINT
+      case Scalar::BigInt64:
+      case Scalar::BigUint64:
+#endif
       case Scalar::MaxTypedArrayViewType:
         MOZ_CRASH("unexpected array type");
     }
@@ -288,6 +292,10 @@ LIRGeneratorX64::visitAsmJSStoreHeap(MAsmJSStoreHeap* ins)
         break;
       case Scalar::Int64:
       case Scalar::Uint8Clamped:
+#ifdef ENABLE_BIGINT
+      case Scalar::BigInt64:
+      case Scalar::BigUint64:
+#endif
       case Scalar::MaxTypedArrayViewType:
         MOZ_CRASH("unexpected array type");
     }

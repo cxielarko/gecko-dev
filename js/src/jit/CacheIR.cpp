@@ -1564,7 +1564,11 @@ GetPropIRGenerator::tryAttachPrimitive(ValOperandId valId, HandleId id)
         primitiveType = JSVAL_TYPE_SYMBOL;
         proto = MaybeNativeObject(cx_->global()->maybeGetPrototype(JSProto_Symbol));
     } else {
+#ifdef ENABLE_BIGINT
+        MOZ_ASSERT(val_.isNullOrUndefined() || val_.isMagic() || val_.isBigInt());
+#else
         MOZ_ASSERT(val_.isNullOrUndefined() || val_.isMagic());
+#endif
         return false;
     }
     if (!proto)
@@ -1855,17 +1859,24 @@ GetPropIRGenerator::tryAttachTypedElement(HandleObject obj, ObjOperandId objId,
     if (IsPrimitiveArrayTypedObject(obj) && cx_->compartment()->detachedTypedObjects)
         return false;
 
+    Scalar::Type elementType = TypedThingElementType(obj);
+
+#ifdef ENABLE_BIGINT
+    if (elementType == Scalar::BigInt64 || elementType == Scalar::BigUint64)
+        return false;
+#endif
+
     TypedThingLayout layout = GetTypedThingLayout(obj->getClass());
     if (layout != Layout_TypedArray)
         writer.guardNoDetachedTypedObjects();
 
     writer.guardShape(objId, obj->as<ShapedObject>().shape());
 
-    writer.loadTypedElementResult(objId, indexId, layout, TypedThingElementType(obj));
+    writer.loadTypedElementResult(objId, indexId, layout, elementType);
 
     // Reading from Uint32Array may produce an int32 now but a double value
     // later, so ensure we monitor the result.
-    if (TypedThingElementType(obj) == Scalar::Type::Uint32)
+    if (elementType == Scalar::Type::Uint32)
         writer.typeMonitorResult();
     else
         writer.returnFromIC();
@@ -3543,6 +3554,11 @@ SetPropIRGenerator::tryAttachSetTypedElement(HandleObject obj, ObjOperandId objI
 
     Scalar::Type elementType = TypedThingElementType(obj);
     TypedThingLayout layout = GetTypedThingLayout(obj->getClass());
+
+#ifdef ENABLE_BIGINT
+    if (elementType == Scalar::BigInt64 || elementType == Scalar::BigUint64)
+        return false;
+#endif
 
     if (!obj->is<TypedArrayObject>())
         writer.guardNoDetachedTypedObjects();

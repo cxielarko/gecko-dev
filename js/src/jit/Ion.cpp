@@ -2484,6 +2484,10 @@ Compile(JSContext* cx, HandleScript script, BaselineFrame* osrFrame, jsbytecode*
 bool
 jit::OffThreadCompilationAvailable(JSContext* cx)
 {
+#ifdef ENABLE_BIGINT
+    return false;
+#endif
+
     // Even if off thread compilation is enabled, compilation must still occur
     // on the active thread in some cases.
     //

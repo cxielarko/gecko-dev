@@ -119,8 +119,6 @@ set_define('ENABLE_BIGINT', enable_bigint)
 # =======================================================
 @depends(target, '--enable-bigint')
 def ion_default(target, enable_bigint):
-    if enable_bigint:
-        return False
     if target.cpu in ('x86', 'x86_64', 'arm', 'aarch64', 'mips32', 'mips64'):
         return True
     return False
