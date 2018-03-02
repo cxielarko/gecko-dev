@@ -49,14 +49,40 @@ class BigInt : public js::gc::TenuredCell
         return mallocSizeOf(this);
     }
 
+    static BigInt* Zero(JSContext* cx);
+    static BigInt* One(JSContext* cx);
+    static BigInt* MakeBigInt32(JSContext* cx, bool sign, uint32_t digit);
+    static BigInt* NumberToBigInt(JSContext* cx, double d);
+
     JSString* toString(JSContext* cx);
     bool toBoolean();
 
     static void Init();
 
+    static BigInt* Add(JSContext* cx, HandleBigInt x, HandleBigInt y);
+    static BigInt* Sub(JSContext* cx, HandleBigInt x, HandleBigInt y);
+    static BigInt* Mul(JSContext* cx, HandleBigInt x, HandleBigInt y);
+    static BigInt* Div(JSContext* cx, HandleBigInt x, HandleBigInt y);
+    static BigInt* Mod(JSContext* cx, HandleBigInt x, HandleBigInt y);
+    static BigInt* Pow(JSContext* cx, HandleBigInt x, HandleBigInt y);
+    static BigInt* Neg(JSContext* cx, HandleBigInt x);
+    static BigInt* Lsh(JSContext* cx, HandleBigInt x, HandleBigInt y);
+    static BigInt* Rsh(JSContext* cx, HandleBigInt x, HandleBigInt y);
+    static BigInt* BitAnd(JSContext* cx, HandleBigInt x, HandleBigInt y);
+    static BigInt* BitOr(JSContext* cx, HandleBigInt x, HandleBigInt y);
+    static BigInt* BitXor(JSContext* cx, HandleBigInt x, HandleBigInt y);
+    static BigInt* BitNot(JSContext* cx, HandleBigInt x);
+    static BigInt* AsUintN(JSContext* cx, HandleBigInt x, uint64_t n);
+    static BigInt* AsIntN(JSContext* cx, HandleBigInt x, uint64_t n);
+    static int32_t Compare(JSContext* cx, HandleBigInt x, HandleBigInt y);
+    static int32_t Compare(HandleBigInt x, HandleBigInt y);
     static BigInt* Copy(JSContext* cx, HandleBigInt x);
 
-    static BigInt* NumberToBigInt(JSContext* cx, double d);
+    static bool ToInt64(JSContext* cx, HandleBigInt x, int64_t& out);
+    static bool ToUint64(JSContext* cx, HandleBigInt x, uint64_t& out);
+    static BigInt* FromInt64(JSContext* cx, int64_t n);
+    static BigInt* FromUint64(JSContext* cx, uint64_t n);
+
     static bool ValueToBigInt(JSContext* cx, HandleValue val, MutableHandleValue res);
     static JSString* ToString(JSContext* cx, HandleBigInt x, int radix);
 };

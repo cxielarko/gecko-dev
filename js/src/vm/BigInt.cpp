@@ -53,6 +53,18 @@ BigInt::New(JSContext* cx)
 }
 
 BigInt*
+BigInt::MakeBigInt32(JSContext* cx, bool sign, uint32_t digit)
+{
+    BigInt* z = New(cx);
+    if (!z)
+        return nullptr;
+    mpz_set_ui(z->num_, static_cast<unsigned long int>(digit));
+    if (sign)
+        mpz_neg(z->num_, z->num_);
+    return z;
+}
+
+BigInt*
 BigInt::NumberToBigInt(JSContext* cx, double d)
 {
     RootedBigInt z(cx, New(cx));
@@ -72,6 +84,209 @@ BigInt::NumberToBigInt(JSContext* cx, double d)
 }
 
 BigInt*
+BigInt::Zero(JSContext* cx)
+{
+    return MakeBigInt32(cx, 0, 0);
+}
+
+BigInt*
+BigInt::One(JSContext* cx)
+{
+    return MakeBigInt32(cx, 0, 1);
+}
+
+BigInt*
+BigInt::Add(JSContext* cx, HandleBigInt x, HandleBigInt y)
+{
+    BigInt* z = New(cx);
+    if (!z)
+        return nullptr;
+    mpz_add(z->num_, x->num_, y->num_);
+    return z;
+}
+
+BigInt*
+BigInt::Sub(JSContext* cx, HandleBigInt x, HandleBigInt y)
+{
+    BigInt* z = New(cx);
+    if (!z)
+        return nullptr;
+    mpz_sub(z->num_, x->num_, y->num_);
+    return z;
+}
+
+BigInt*
+BigInt::Mul(JSContext* cx, HandleBigInt x, HandleBigInt y)
+{
+    BigInt* z = New(cx);
+    if (!z)
+        return nullptr;
+    mpz_mul(z->num_, x->num_, y->num_);
+    return z;
+}
+
+BigInt*
+BigInt::Div(JSContext* cx, HandleBigInt x, HandleBigInt y)
+{
+    if (!mpz_size(y->num_)) {
+        JS_ReportErrorNumberASCII(cx, GetErrorMessage, nullptr,
+                                  JSMSG_BIGINT_DIVISION_BY_ZERO);
+        return nullptr;
+    }
+    BigInt* z = New(cx);
+    if (!z)
+        return nullptr;
+    mpz_tdiv_q(z->num_, x->num_, y->num_);
+    return z;
+}
+
+BigInt*
+BigInt::Mod(JSContext* cx, HandleBigInt x, HandleBigInt y)
+{
+    if (!mpz_size(y->num_)) {
+        JS_ReportErrorNumberASCII(cx, GetErrorMessage, nullptr,
+                                  JSMSG_BIGINT_DIVISION_BY_ZERO);
+        return nullptr;
+    }
+    BigInt* z = New(cx);
+    if (!z)
+        return nullptr;
+    mpz_tdiv_r(z->num_, x->num_, y->num_);
+    return z;
+}
+
+BigInt*
+BigInt::Pow(JSContext* cx, HandleBigInt x, HandleBigInt y)
+{
+    if (mpz_sgn(y->num_) < 0) {
+        JS_ReportErrorNumberASCII(cx, GetErrorMessage, nullptr,
+                                  JSMSG_BIGINT_NEGATIVE_EXPONENT);
+        return nullptr;
+    }
+    BigInt* z = New(cx);
+    if (!z)
+        return nullptr;
+    mpz_pow_ui(z->num_, x->num_, mpz_get_ui(y->num_));
+    return z;
+}
+
+BigInt*
+BigInt::Neg(JSContext* cx, HandleBigInt x)
+{
+    BigInt* z = New(cx);
+    if (!z)
+        return nullptr;
+    mpz_neg(z->num_, x->num_);
+    return z;
+}
+
+BigInt*
+BigInt::Lsh(JSContext* cx, HandleBigInt x, HandleBigInt y)
+{
+    BigInt* z = New(cx);
+    if (!z)
+        return nullptr;
+    if (mpz_sgn(y->num_) < 0)
+        mpz_fdiv_q_2exp(z->num_, x->num_, mpz_get_ui(y->num_));
+    else
+        mpz_mul_2exp(z->num_, x->num_, mpz_get_ui(y->num_));
+    return z;
+}
+
+BigInt*
+BigInt::Rsh(JSContext* cx, HandleBigInt x, HandleBigInt y)
+{
+    BigInt* z = New(cx);
+    if (!z)
+        return nullptr;
+    if (mpz_sgn(y->num_) < 0)
+        mpz_mul_2exp(z->num_, x->num_, mpz_get_ui(y->num_));
+    else
+        mpz_fdiv_q_2exp(z->num_, x->num_, mpz_get_ui(y->num_));
+    return z;
+}
+
+BigInt*
+BigInt::BitAnd(JSContext* cx, HandleBigInt x, HandleBigInt y)
+{
+    BigInt* z = New(cx);
+    if (!z)
+        return nullptr;
+    mpz_and(z->num_, x->num_, y->num_);
+    return z;
+}
+
+BigInt*
+BigInt::BitOr(JSContext* cx, HandleBigInt x, HandleBigInt y)
+{
+    BigInt* z = New(cx);
+    if (!z)
+        return nullptr;
+    mpz_ior(z->num_, x->num_, y->num_);
+    return z;
+}
+
+BigInt*
+BigInt::BitXor(JSContext* cx, HandleBigInt x, HandleBigInt y)
+{
+    BigInt* z = New(cx);
+    if (!z)
+        return nullptr;
+    mpz_xor(z->num_, x->num_, y->num_);
+    return z;
+}
+
+BigInt*
+BigInt::BitNot(JSContext* cx, HandleBigInt x)
+{
+    BigInt* z = New(cx);
+    if (!z)
+        return nullptr;
+    mpz_neg(z->num_, x->num_);
+    mpz_sub_ui(z->num_, z->num_, 1);
+    return z;
+}
+
+BigInt*
+BigInt::AsUintN(JSContext* cx, HandleBigInt x, uint64_t n)
+{
+    BigInt* z = New(cx);
+    if (!z)
+        return nullptr;
+    mpz_fdiv_r_2exp(z->num_, x->num_, n);
+    return z;
+}
+
+BigInt*
+BigInt::AsIntN(JSContext* cx, HandleBigInt x, uint64_t n)
+{
+    BigInt* z = New(cx);
+    if (!z)
+        return nullptr;
+    mpz_fdiv_r_2exp(z->num_, x->num_, n);
+    if (mpz_tstbit(z->num_, n-1)) {
+        mpz_t mask;
+        mpz_init_set_si(mask, -1);
+        mpz_mul_2exp(mask, mask, n);
+        mpz_ior(z->num_, z->num_, mask);
+        mpz_clear(mask);
+    }
+    return z;
+}
+
+int32_t
+BigInt::Compare(JSContext* cx, HandleBigInt x, HandleBigInt y)
+{
+    return BigInt::Compare(x, y);
+}
+
+int32_t
+BigInt::Compare(HandleBigInt x, HandleBigInt y)
+{
+    return mpz_cmp(x->num_, y->num_);
+}
+
+BigInt*
 BigInt::Copy(JSContext* cx, HandleBigInt x)
 {
     BigInt* copy = New(cx);
@@ -79,6 +294,42 @@ BigInt::Copy(JSContext* cx, HandleBigInt x)
         return nullptr;
     mpz_set(copy->num_, x->num_);
     return copy;
+}
+
+bool
+BigInt::ToInt64(JSContext* cx, HandleBigInt x, int64_t& out)
+{
+    out = mpz_get_si(x->num_);
+    return true;
+}
+
+bool
+BigInt::ToUint64(JSContext* cx, HandleBigInt x, uint64_t& out)
+{
+    out = (mpz_sgn(x->num_) < 0)
+        ? static_cast<uint64_t>(mpz_get_si(x->num_))
+        : mpz_get_ui(x->num_);
+    return true;
+}
+
+BigInt*
+BigInt::FromInt64(JSContext* cx, int64_t n)
+{
+    BigInt* z = New(cx);
+    if (!z)
+        return nullptr;
+    mpz_set_si(z->num_, n);
+    return z;
+}
+
+BigInt*
+BigInt::FromUint64(JSContext* cx, uint64_t n)
+{
+    BigInt* z = New(cx);
+    if (!z)
+        return nullptr;
+    mpz_set_ui(z->num_, n);
+    return z;
 }
 
 bool
