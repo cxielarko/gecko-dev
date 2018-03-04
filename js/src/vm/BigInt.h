@@ -92,6 +92,12 @@ class BigInt : public js::gc::TenuredCell
     static bool CompareNumber(JSContext* cx, double lhs, HandleBigInt rhs, MutableHandleValue res);
 
     static bool CompareString(JSContext* cx, HandleValue lhs, HandleValue rhs, MutableHandleValue res);
+
+  private:
+    template <typename CharT>
+    static bool StringToBigIntImpl(const CharT* chars, size_t length,
+                                   unsigned radix, HandleBigInt res);
+    static BigInt* StringToBigInt(JSContext* cx, HandleString str, unsigned radix);
 };
 }
 

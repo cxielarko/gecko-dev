@@ -346,6 +346,17 @@ BigInt::ValueToBigInt(JSContext* cx, HandleValue val, MutableHandleValue res)
         res.setBigInt(v.isTrue() ? One(cx) : Zero(cx));
         return true;
     }
+    if (v.isString()) {
+        RootedString str(cx, v.toString());
+        RootedBigInt bi(cx, StringToBigInt(cx, str, 0));
+        if (!bi) {
+            JS_ReportErrorNumberASCII(cx, GetErrorMessage, nullptr,
+                                      JSMSG_BIGINT_INVALID_SYNTAX);
+            return false;
+        }
+        res.setBigInt(bi);
+        return true;
+    }
     JS_ReportErrorNumberASCII(cx, GetErrorMessage, nullptr, JSMSG_NOT_BIGINT);
     return false;
 }
@@ -427,6 +438,107 @@ BigInt::ToString(JSContext* cx, HandleBigInt x, int radix)
     if (!str)
         return nullptr;
     return JS_NewStringCopyZ(cx, str);
+}
+
+template <typename CharT>
+static bool
+ParseBigIntDigit(CharT c, unsigned* res)
+{
+    if ('0' <= c && c <= '9') {
+        *res = c - '0';
+        return true;
+    } else if ('a' <= c && c <= 'z') {
+        *res = c - 'a' + 10;
+        return true;
+    } else if ('A' <= c && c <= 'Z') {
+        *res = c - 'A' + 10;
+        return true;
+    }
+    return false;
+}
+
+template <typename CharT>
+bool
+BigInt::StringToBigIntImpl(const CharT* chars, size_t length, unsigned radix,
+                           HandleBigInt res)
+{
+    const CharT* end = chars + length;
+    const CharT* s = SkipSpace(chars, end);
+
+    int sign = 0;
+
+    if (s != end && s[0] == '+') {
+        sign = 1;
+        s++;
+    } else if (s != end && s[0] == '-') {
+        sign = -1;
+        s++;
+    }
+
+    if (!radix) {
+        radix = 10;
+        if (end - s >= 2 && s[0] == '0') {
+            if (s[1] == 'x' || s[1] == 'X') {
+                radix = 16;
+                s += 2;
+            } else if (s[1] == 'o' || s[1] == 'O') {
+                radix = 8;
+                s += 2;
+            } else if (s[1] == 'b' || s[1] == 'B') {
+                radix = 2;
+                s += 2;
+            }
+            if (radix != 10 && s == end) {
+                return false;
+            }
+        }
+    }
+
+    if (sign != 0 && radix != 10)
+        return false;
+
+    mpz_set_ui(res->num_, 0);
+
+    for (; s < end; s++) {
+        unsigned digit;
+        if (!ParseBigIntDigit(s[0], &digit)) {
+            if (SkipSpace(s, end) == end)
+                break;
+            return false;
+        }
+        if (digit >= radix)
+            return false;
+        mpz_mul_ui(res->num_, res->num_, radix);
+        mpz_add_ui(res->num_, res->num_, digit);
+    }
+
+    if (sign < 0)
+        mpz_neg(res->num_, res->num_);
+
+    return true;
+}
+
+BigInt*
+BigInt::StringToBigInt(JSContext* cx, HandleString str, unsigned radix)
+{
+    RootedBigInt res(cx, New(cx));
+
+    JSLinearString* linear = str->ensureLinear(cx);
+    if (!linear)
+        return nullptr;
+
+    AutoCheckCannotGC nogc;
+    size_t length = str->length();
+    if (linear->hasLatin1Chars()) {
+        if (!StringToBigIntImpl(linear->latin1Chars(nogc), length, radix, res)) {
+            return nullptr;
+        }
+    } else {
+        if (!StringToBigIntImpl(linear->twoByteChars(nogc), length, radix, res)) {
+            return nullptr;
+        }
+    }
+    return res;
 }
 
 void
