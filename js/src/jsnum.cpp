@@ -34,6 +34,7 @@
 
 #include "jsatominlines.h"
 
+#include "vm/BigInt.h"
 #include "vm/NativeObject-inl.h"
 #include "vm/NumberObject-inl.h"
 #include "vm/String-inl.h"
@@ -492,6 +493,14 @@ Number(JSContext* cx, unsigned argc, Value* vp)
     CallArgs args = CallArgsFromVp(argc, vp);
 
     if (args.length() > 0) {
+        if (!ToNumeric(cx, args[0]))
+            return false;
+#ifdef ENABLE_BIGINT
+        if (args[0].isBigInt()) {
+            if (!BigInt::NumberValue(cx, args[0], args[0]))
+                return false;
+        }
+#endif
         if (!ToNumber(cx, args[0]))
             return false;
     }
