@@ -1560,6 +1560,14 @@ Disassemble1(JSContext* cx, HandleScript script, jsbytecode* pc,
             return 0;
         break;
 
+#ifdef ENABLE_BIGINT
+      case JOF_BIGINT:
+        MOZ_ASSERT(op == JSOP_BIGINT);
+        if (!sp->jsprintf(" [BigInt]"))
+            return 0;
+        break;
+#endif
+
       default: {
         char numBuf[12];
         SprintfLiteral(numBuf, "%x", cs->format);

@@ -58,6 +58,9 @@ enum {
     JOF_ATOMOBJECT      = 19,       /* uint16_t constant index + object index */
     JOF_SCOPE           = 20,       /* unsigned 32-bit scope index */
     JOF_ENVCOORD        = 21,       /* embedded ScopeCoordinate immediate */
+#ifdef ENABLE_BIGINT
+    JOF_BIGINT          = 22,       /* uint32_t index for BigInt value */
+#endif
     JOF_TYPEMASK        = 0x001f,   /* mask for above immediate types */
 
     JOF_NAME            = 1 << 5,   /* name operation */

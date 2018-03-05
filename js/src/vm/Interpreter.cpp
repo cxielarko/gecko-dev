@@ -2808,6 +2808,13 @@ CASE(JSOP_POS)
         goto error;
 END_CASE(JSOP_POS)
 
+#ifdef ENABLE_BIGINT
+CASE(JSOP_NUMERIC_POS)
+if (!ToNumeric(cx, REGS.stackHandleAt(-1)))
+    goto error;
+END_CASE(JSOP_NUMERIC_POS)
+#endif
+
 CASE(JSOP_DELNAME)
 {
     ReservedRooted<PropertyName*> name(&rootName0, script->getName(REGS.pc));
@@ -3493,6 +3500,21 @@ END_CASE(JSOP_ZERO)
 CASE(JSOP_ONE)
     PUSH_INT32(1);
 END_CASE(JSOP_ONE)
+
+#ifdef ENABLE_BIGINT
+CASE(JSOP_NUMERIC_ONE)
+{
+    if (REGS.sp[-1].isBigInt()) {
+        RootedBigInt bi(cx, BigInt::One(cx));
+        if (!bi)
+            goto error;
+        REGS.sp++->setBigInt(bi);
+    } else {
+        PUSH_INT32(1);
+    }
+}
+END_CASE(JSOP_NUMERIC_ONE)
+#endif
 
 CASE(JSOP_NULL)
     PUSH_NULL();
@@ -4423,6 +4445,13 @@ END_CASE(JSOP_DEBUGCHECKSELFHOSTED)
 CASE(JSOP_IS_CONSTRUCTING)
     PUSH_MAGIC(JS_IS_CONSTRUCTING);
 END_CASE(JSOP_IS_CONSTRUCTING)
+
+#ifdef ENABLE_BIGINT
+CASE(JSOP_BIGINT)
+    BigInt* bigint = script->getConst(GET_UINT32_INDEX(REGS.pc)).toBigInt();
+    REGS.sp++->setBigInt(bigint);
+END_CASE(JSOP_BIGINT)
+#endif
 
 DEFAULT()
 {
