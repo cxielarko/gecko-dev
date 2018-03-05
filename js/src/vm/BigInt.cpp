@@ -342,6 +342,10 @@ BigInt::ValueToBigInt(JSContext* cx, HandleValue val, MutableHandleValue res)
         res.set(v);
         return true;
     }
+    if (v.isBoolean()) {
+        res.setBigInt(v.isTrue() ? One(cx) : Zero(cx));
+        return true;
+    }
     JS_ReportErrorNumberASCII(cx, GetErrorMessage, nullptr, JSMSG_NOT_BIGINT);
     return false;
 }
