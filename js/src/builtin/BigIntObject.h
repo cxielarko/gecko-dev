@@ -26,6 +26,7 @@ class BigIntObject : public NativeObject
     static JSObject* initClass(JSContext* cx, HandleObject obj);
     static bool ValueOf(JSContext* cx, unsigned argc, Value* vp);
     static bool ToString(JSContext* cx, unsigned argc, Value* vp);
+    static bool ToLocaleString(JSContext* cx, unsigned argc, Value* vp);
     static bool AsUintN(JSContext* cx, unsigned argc, Value* vp);
     static bool AsIntN(JSContext* cx, unsigned argc, Value* vp);
 

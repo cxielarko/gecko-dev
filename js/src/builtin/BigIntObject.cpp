@@ -147,6 +147,24 @@ BigIntObject::ToString(JSContext* cx, unsigned argc, Value* vp)
     return true;
 }
 
+bool
+BigIntObject::ToLocaleString(JSContext* cx, unsigned argc, Value* vp)
+{
+    CallArgs args = CallArgsFromVp(argc, vp);
+    HandleValue thisv = args.thisv();
+    RootedBigInt bi(cx, ToBigInt(thisv));
+    if (!bi) {
+        JS_ReportErrorNumberASCII(cx, GetErrorMessage, nullptr, JSMSG_NOT_BIGINT);
+        return false;
+    }
+
+    RootedString str(cx, BigInt::ToString(cx, bi, 10));
+    if (!str)
+        return false;
+    args.rval().setString(str);
+    return true;
+}
+
 bool BigIntObject::AsUintN(JSContext* cx, unsigned argc, Value* vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
@@ -212,6 +230,7 @@ const JSPropertySpec BigIntObject::properties[] = {
 const JSFunctionSpec BigIntObject::methods[] = {
     JS_FN("valueOf", ValueOf, 0, 0),
     JS_FN("toString", ToString, 0, 0),
+    JS_FN("toLocaleString", ToLocaleString, 2, 0),
     JS_FS_END
 };
 
