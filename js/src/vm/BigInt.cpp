@@ -346,6 +346,18 @@ BigInt::ValueToBigInt(JSContext* cx, HandleValue val, MutableHandleValue res)
     return false;
 }
 
+bool
+BigInt::NumberValue(JSContext* cx, HandleValue val, MutableHandleValue res)
+{
+    MOZ_ASSERT(val.isBigInt());
+    RootedBigInt x(cx, val.toBigInt());
+
+    signed long int exp;
+    double d = mpz_get_d_2exp(&exp, x->num_);
+    res.setNumber(ldexp(d, exp));
+    return true;
+}
+
 JSString*
 BigInt::ToString(JSContext* cx, HandleBigInt x, int radix)
 {
