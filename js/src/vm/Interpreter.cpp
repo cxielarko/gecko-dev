@@ -2771,7 +2771,7 @@ CASE(JSOP_POW)
     ReservedRooted<Value> lval(&rootValue0, REGS.sp[-2]);
     ReservedRooted<Value> rval(&rootValue1, REGS.sp[-1]);
     MutableHandleValue res = REGS.stackHandleAt(-2);
-    if (!math_pow_handle(cx, &lval, &rval, res))
+    if (!PowOperation(cx, &lval, &rval, res))
         goto error;
     REGS.sp--;
 }
@@ -4831,6 +4831,12 @@ bool
 js::ModValues(JSContext* cx, MutableHandleValue lhs, MutableHandleValue rhs, MutableHandleValue res)
 {
     return ModOperation(cx, lhs, rhs, res);
+}
+
+bool
+js::PowValues(JSContext* cx, MutableHandleValue lhs, MutableHandleValue rhs, MutableHandleValue res)
+{
+    return PowOperation(cx, lhs, rhs, res);
 }
 
 bool
