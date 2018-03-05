@@ -147,6 +147,46 @@ BigIntObject::ToString(JSContext* cx, unsigned argc, Value* vp)
     return true;
 }
 
+bool BigIntObject::AsUintN(JSContext* cx, unsigned argc, Value* vp)
+{
+    CallArgs args = CallArgsFromVp(argc, vp);
+
+    uint64_t bits;
+    if (!ToIndex(cx, args[0], &bits))
+        return false;
+
+    RootedValue val(cx, args[1]);
+    if (!BigInt::ValueToBigInt(cx, val, &val))
+        return false;
+    RootedBigInt bi(cx, val.toBigInt());
+
+    RootedBigInt res(cx, BigInt::AsUintN(cx, bi, bits));
+    if (!res)
+        return false;
+    args.rval().setBigInt(res);
+    return true;
+}
+
+bool BigIntObject::AsIntN(JSContext* cx, unsigned argc, Value* vp)
+{
+    CallArgs args = CallArgsFromVp(argc, vp);
+
+    uint64_t bits;
+    if (!ToIndex(cx, args[0], &bits))
+        return false;
+
+    RootedValue val(cx, args[1]);
+    if (!BigInt::ValueToBigInt(cx, val, &val))
+        return false;
+    RootedBigInt bi(cx, val.toBigInt());
+
+    RootedBigInt res(cx, BigInt::AsIntN(cx, bi, bits));
+    if (!res)
+        return false;
+    args.rval().setBigInt(res);
+    return true;
+}
+
 static const ClassSpec BigIntObjectClassSpec = {
     GenericCreateConstructor<BigIntConstructor, 1, gc::AllocKind::FUNCTION>,
     CreateBigIntPrototype
@@ -176,6 +216,8 @@ const JSFunctionSpec BigIntObject::methods[] = {
 };
 
 const JSFunctionSpec BigIntObject::staticMethods[] = {
+    JS_FN("asUintN", AsUintN, 2, 0),
+    JS_FN("asIntN", AsIntN, 2, 0),
     JS_FS_END
 };
 
