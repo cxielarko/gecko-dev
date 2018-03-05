@@ -856,63 +856,105 @@ GreaterThanOrEqualOperation(JSContext* cx, MutableHandleValue lhs, MutableHandle
 }
 
 static MOZ_ALWAYS_INLINE bool
-BitNot(JSContext* cx, HandleValue in, int* out)
+BitNot(JSContext* cx, MutableHandleValue in, MutableHandleValue out)
 {
-    int i;
-    if (!ToInt32(cx, in, &i))
+    if (!ToInt32OrBigInt(cx, in))
         return false;
-    *out = ~i;
-    return true;
+
+    if (in.isInt32()) {
+        out.setInt32(~in.toInt32());
+        return true;
+    }
+#ifdef ENABLE_BIGINT
+    return TryBigIntUnaryFunction(cx, BigInt::BitNot, in, out);
+#else
+    return false;
+#endif
 }
 
 static MOZ_ALWAYS_INLINE bool
-BitXor(JSContext* cx, HandleValue lhs, HandleValue rhs, int* out)
+BitXor(JSContext* cx, MutableHandleValue lhs, MutableHandleValue rhs, MutableHandleValue out)
 {
-    int left, right;
-    if (!ToInt32(cx, lhs, &left) || !ToInt32(cx, rhs, &right))
+    if (!ToInt32OrBigInt(cx, lhs) || !ToInt32OrBigInt(cx, rhs))
         return false;
-    *out = left ^ right;
-    return true;
+
+    if (lhs.isInt32() && rhs.isInt32()) {
+        out.setInt32(lhs.toInt32() ^ rhs.toInt32());
+        return true;
+    }
+#ifdef ENABLE_BIGINT
+    return TryBigIntBinaryFunction(cx, BigInt::BitXor, lhs, rhs, out);
+#else
+    return false;
+#endif
 }
 
 static MOZ_ALWAYS_INLINE bool
-BitOr(JSContext* cx, HandleValue lhs, HandleValue rhs, int* out)
+BitOr(JSContext* cx, MutableHandleValue lhs, MutableHandleValue rhs, MutableHandleValue out)
 {
-    int left, right;
-    if (!ToInt32(cx, lhs, &left) || !ToInt32(cx, rhs, &right))
+    if (!ToInt32OrBigInt(cx, lhs) || !ToInt32OrBigInt(cx, rhs))
         return false;
-    *out = left | right;
-    return true;
+
+    if (lhs.isInt32() && rhs.isInt32()) {
+        out.setInt32(lhs.toInt32() | rhs.toInt32());
+        return true;
+    }
+#ifdef ENABLE_BIGINT
+    return TryBigIntBinaryFunction(cx, BigInt::BitOr, lhs, rhs, out);
+#else
+    return false;
+#endif
 }
 
 static MOZ_ALWAYS_INLINE bool
-BitAnd(JSContext* cx, HandleValue lhs, HandleValue rhs, int* out)
+BitAnd(JSContext* cx, MutableHandleValue lhs, MutableHandleValue rhs, MutableHandleValue out)
 {
-    int left, right;
-    if (!ToInt32(cx, lhs, &left) || !ToInt32(cx, rhs, &right))
+    if (!ToInt32OrBigInt(cx, lhs) || !ToInt32OrBigInt(cx, rhs))
         return false;
-    *out = left & right;
-    return true;
+
+    if (lhs.isInt32() && rhs.isInt32()) {
+        out.setInt32(lhs.toInt32() & rhs.toInt32());
+        return true;
+    }
+#ifdef ENABLE_BIGINT
+    return TryBigIntBinaryFunction(cx, BigInt::BitAnd, lhs, rhs, out);
+#else
+    return false;
+#endif
 }
 
 static MOZ_ALWAYS_INLINE bool
-BitLsh(JSContext* cx, HandleValue lhs, HandleValue rhs, int* out)
+BitLsh(JSContext* cx, MutableHandleValue lhs, MutableHandleValue rhs, MutableHandleValue out)
 {
-    int32_t left, right;
-    if (!ToInt32(cx, lhs, &left) || !ToInt32(cx, rhs, &right))
+    if (!ToInt32OrBigInt(cx, lhs) || !ToInt32OrBigInt(cx, rhs))
         return false;
-    *out = uint32_t(left) << (right & 31);
-    return true;
+
+    if (lhs.isInt32() && rhs.isInt32()) {
+        out.setInt32(lhs.toInt32() << (rhs.toInt32() & 31));
+        return true;
+    }
+#ifdef ENABLE_BIGINT
+    return TryBigIntBinaryFunction(cx, BigInt::Lsh, lhs, rhs, out);
+#else
+    return false;
+#endif
 }
 
 static MOZ_ALWAYS_INLINE bool
-BitRsh(JSContext* cx, HandleValue lhs, HandleValue rhs, int* out)
+BitRsh(JSContext* cx, MutableHandleValue lhs, MutableHandleValue rhs, MutableHandleValue out)
 {
-    int32_t left, right;
-    if (!ToInt32(cx, lhs, &left) || !ToInt32(cx, rhs, &right))
+    if (!ToInt32OrBigInt(cx, lhs) || !ToInt32OrBigInt(cx, rhs))
         return false;
-    *out = left >> (right & 31);
-    return true;
+
+    if (lhs.isInt32() && rhs.isInt32()) {
+        out.setInt32(lhs.toInt32() >> (rhs.toInt32() & 31));
+        return true;
+    }
+#ifdef ENABLE_BIGINT
+    return TryBigIntBinaryFunction(cx, BigInt::Rsh, lhs, rhs, out);
+#else
+    return false;
+#endif
 }
 
 static MOZ_ALWAYS_INLINE bool

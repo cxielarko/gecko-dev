@@ -2510,7 +2510,26 @@ CASE(JSOP_BINDVAR)
 }
 END_CASE(JSOP_BINDVAR)
 
-#define BITWISE_OP(OP)                                                        \
+#ifdef ENABLE_BIGINT
+#define BITWISE_OP(OP, OPNAME)                                                \
+    JS_BEGIN_MACRO                                                            \
+        MutableHandleValue lhs = REGS.stackHandleAt(-2);                      \
+        MutableHandleValue rhs = REGS.stackHandleAt(-1);                      \
+        MutableHandleValue res = REGS.stackHandleAt(-2);                      \
+        if (!ToInt32OrBigInt(cx, lhs) || !ToInt32OrBigInt(cx, rhs)) {         \
+            goto error;                                                       \
+        }                                                                     \
+        if (lhs.isInt32() && rhs.isInt32()) {                                 \
+            res.setInt32(lhs.toInt32() OP rhs.toInt32());                     \
+        } else {                                                              \
+            if (!TryBigIntBinaryFunction(cx, OPNAME, lhs, rhs, res)) {        \
+                goto error;                                                   \
+            }                                                                 \
+        }                                                                     \
+        REGS.sp--;                                                            \
+    JS_END_MACRO
+#else
+#define BITWISE_OP(OP, OPNAME)                                                \
     JS_BEGIN_MACRO                                                            \
         int32_t i, j;                                                         \
         if (!ToInt32(cx, REGS.stackHandleAt(-2), &i))                         \
@@ -2521,17 +2540,18 @@ END_CASE(JSOP_BINDVAR)
         REGS.sp--;                                                            \
         REGS.sp[-1].setInt32(i);                                              \
     JS_END_MACRO
+#endif
 
 CASE(JSOP_BITOR)
-    BITWISE_OP(|);
+    BITWISE_OP(|, BigInt::BitOr);
 END_CASE(JSOP_BITOR)
 
 CASE(JSOP_BITXOR)
-    BITWISE_OP(^);
+    BITWISE_OP(^, BigInt::BitXor);
 END_CASE(JSOP_BITXOR)
 
 CASE(JSOP_BITAND)
-    BITWISE_OP(&);
+    BITWISE_OP(&, BigInt::BitAnd);
 END_CASE(JSOP_BITAND)
 
 #undef BITWISE_OP
@@ -2638,7 +2658,26 @@ CASE(JSOP_GE)
 }
 END_CASE(JSOP_GE)
 
-#define SIGNED_SHIFT_OP(OP, TYPE)                                             \
+#ifdef ENABLE_BIGINT
+#define SIGNED_SHIFT_OP(OP, TYPE, OPNAME)                                     \
+    JS_BEGIN_MACRO                                                            \
+        MutableHandleValue lhs = REGS.stackHandleAt(-2);                      \
+        MutableHandleValue rhs = REGS.stackHandleAt(-1);                      \
+        MutableHandleValue res = REGS.stackHandleAt(-2);                      \
+        if (!ToInt32OrBigInt(cx, lhs) || !ToInt32OrBigInt(cx, rhs)) {         \
+            goto error;                                                       \
+        }                                                                     \
+        if (lhs.isInt32() && rhs.isInt32()) {                                 \
+            res.setInt32(TYPE(lhs.toInt32()) OP (rhs.toInt32() & 31));        \
+        } else {                                                              \
+            if (!TryBigIntBinaryFunction(cx, OPNAME, lhs, rhs, res)) {        \
+                goto error;                                                   \
+            }                                                                 \
+        }                                                                     \
+        REGS.sp--;                                                            \
+     JS_END_MACRO
+#else
+#define SIGNED_SHIFT_OP(OP, TYPE, OPNAME)                                     \
     JS_BEGIN_MACRO                                                            \
         int32_t i, j;                                                         \
         if (!ToInt32(cx, REGS.stackHandleAt(-2), &i))                         \
@@ -2649,13 +2688,14 @@ END_CASE(JSOP_GE)
         REGS.sp--;                                                            \
         REGS.sp[-1].setInt32(i);                                              \
     JS_END_MACRO
+#endif
 
 CASE(JSOP_LSH)
-    SIGNED_SHIFT_OP(<<, uint32_t);
+    SIGNED_SHIFT_OP(<<, uint32_t, BigInt::Lsh);
 END_CASE(JSOP_LSH)
 
 CASE(JSOP_RSH)
-    SIGNED_SHIFT_OP(>>, int32_t);
+    SIGNED_SHIFT_OP(>>, int32_t, BigInt::Rsh);
 END_CASE(JSOP_RSH)
 
 #undef SIGNED_SHIFT_OP
@@ -2747,11 +2787,10 @@ END_CASE(JSOP_NOT)
 
 CASE(JSOP_BITNOT)
 {
-    int32_t i;
-    HandleValue value = REGS.stackHandleAt(-1);
-    if (!BitNot(cx, value, &i))
+    MutableHandleValue value = REGS.stackHandleAt(-1);
+    MutableHandleValue res = REGS.stackHandleAt(-1);
+    if (!BitNot(cx, value, res))
         goto error;
-    REGS.sp[-1].setInt32(i);
 }
 END_CASE(JSOP_BITNOT)
 
