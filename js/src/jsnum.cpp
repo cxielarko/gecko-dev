@@ -1755,6 +1755,36 @@ js::ToInt32Slow(JSContext* cx, const HandleValue v, int32_t* out)
     return true;
 }
 
+bool
+js::ToInt32OrBigIntSlow(JSContext* cx, MutableHandleValue vp)
+{
+    MOZ_ASSERT(!vp.isInt32());
+    if (vp.isDouble()) {
+        vp.setInt32(ToInt32(vp.toDouble()));
+        return true;
+    }
+    if (!vp.isPrimitive()) {
+        if (cx->helperThread())
+            return false;
+        if (!ToPrimitive(cx, JSTYPE_NUMBER, vp))
+            return false;
+    }
+    if (vp.isInt32()) {
+        return true;
+    }
+#ifdef ENABLE_BIGINT
+    if (vp.isBigInt()) {
+        return true;
+    }
+#endif
+    int32_t out;
+    if (!ToInt32Slow(cx, vp, &out)) {
+        return false;
+    }
+    vp.setInt32(out);
+    return true;
+}
+
 JS_PUBLIC_API(bool)
 js::ToUint32Slow(JSContext* cx, const HandleValue v, uint32_t* out)
 {
