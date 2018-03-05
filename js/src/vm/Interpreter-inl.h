@@ -743,6 +743,7 @@ InitArrayElemOperation(JSContext* cx, jsbytecode* pc, HandleObject obj, uint32_t
     return true;
 }
 
+#ifdef ENABLE_BIGINT
 #define RELATIONAL_OP(OP)                                                     \
     JS_BEGIN_MACRO                                                            \
         /* Optimize for two int-tagged operands (typical loop control). */    \
@@ -761,14 +762,70 @@ InitArrayElemOperation(JSContext* cx, jsbytecode* pc, HandleObject obj, uint32_t
                     return false;                                             \
                 *res = result OP 0;                                           \
             } else {                                                          \
-                double l, r;                                                  \
-                if (!ToNumber(cx, lhs, &l) || !ToNumber(cx, rhs, &r))         \
+                if (!ToNumeric(cx, lhs) || !ToNumeric(cx, rhs)) {             \
                     return false;                                             \
-                *res = (l OP r);                                              \
+                }                                                             \
+                if (lhs.isNumber() && rhs.isNumber()) {                       \
+                    *res = (lhs.toNumber() OP rhs.toNumber());                \
+                } else if (lhs.isBigInt() && rhs.isBigInt()) {                \
+                    RootedValue rv(cx);                                       \
+                    if (!TryBigIntBinaryFunction(cx, BigInt::Compare,         \
+                                                 lhs, rhs, &rv)) {            \
+                        return false;                                         \
+                    }                                                         \
+                    int32_t result;                                           \
+                    if (!ToInt32(cx, rv, &result))                            \
+                        return false;                                         \
+                    *res = result OP 0;                                       \
+                } else {                                                      \
+                    RootedValue rv(cx);                                       \
+                    if (!BigInt::CompareNumber(cx, lhs, rhs, &rv))            \
+                        return false;                                         \
+                    if (rv.isUndefined()) {                                   \
+                        *res = false;                                         \
+                        return true;                                          \
+                    }                                                         \
+                    int32_t result;                                           \
+                    if (!ToInt32(cx, rv, &result))                            \
+                        return false;                                         \
+                    *res = result OP 0;                                       \
+                }                                                             \
             }                                                                 \
         }                                                                     \
         return true;                                                          \
     JS_END_MACRO
+#else
+#define RELATIONAL_OP(OP)                                                     \
+    JS_BEGIN_MACRO                                                            \
+        /* Optimize for two int-tagged operands (typical loop control). */    \
+        if (lhs.isInt32() && rhs.isInt32()) {                                 \
+            *res = lhs.toInt32() OP rhs.toInt32();                            \
+        } else {                                                              \
+            if (!ToPrimitive(cx, JSTYPE_NUMBER, lhs))                         \
+                return false;                                                 \
+            if (!ToPrimitive(cx, JSTYPE_NUMBER, rhs))                         \
+                return false;                                                 \
+            if (lhs.isString() && rhs.isString()) {                           \
+                JSString* l = lhs.toString();                                 \
+                JSString* r = rhs.toString();                                 \
+                int32_t result;                                               \
+                if (!CompareStrings(cx, l, r, &result))                       \
+                    return false;                                             \
+                *res = result OP 0;                                           \
+            } else {                                                          \
+                if (!ToNumeric(cx, lhs) || !ToNumeric(cx, rhs)) {             \
+                    return false;                                             \
+                }                                                             \
+                if (lhs.isNumber() && rhs.isNumber()) {                       \
+                    *res = (lhs.toNumber() OP rhs.toNumber());                \
+                } else {                                                      \
+                    return false;                                             \
+                }                                                             \
+            }                                                                 \
+        }                                                                     \
+        return true;                                                          \
+    JS_END_MACRO
+#endif
 
 static MOZ_ALWAYS_INLINE bool
 LessThanOperation(JSContext* cx, MutableHandleValue lhs, MutableHandleValue rhs, bool* res) {
