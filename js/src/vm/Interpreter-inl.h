@@ -26,6 +26,64 @@
 
 namespace js {
 
+#ifdef ENABLE_BIGINT
+static inline bool
+TryBigIntBinaryFunction(JSContext* cx,
+                        BigInt* fn(JSContext*, HandleBigInt, HandleBigInt),
+                        HandleValue lhs, HandleValue rhs,
+                        MutableHandleValue res)
+{
+    if (lhs.isBigInt() && rhs.isBigInt()) {
+        RootedBigInt x(cx, lhs.toBigInt());
+        RootedBigInt y(cx, rhs.toBigInt());
+        BigInt* z = fn(cx, x, y);
+        if (!z)
+            return false;
+        res.setBigInt(z);
+        return true;
+    }
+    JS_ReportErrorNumberASCII(cx, GetErrorMessage, nullptr,
+                              JSMSG_BIGINT_TO_NUMBER);
+    return false;
+}
+
+static inline bool
+TryBigIntUnaryFunction(JSContext* cx,
+                       BigInt* fn(JSContext*, HandleBigInt),
+                       HandleValue operand,
+                       MutableHandleValue res)
+{
+    if (operand.isBigInt()) {
+        RootedBigInt x(cx, operand.toBigInt());
+        BigInt* z = fn(cx, x);
+        if (!z)
+            return false;
+        res.setBigInt(z);
+        return true;
+    }
+    JS_ReportErrorNumberASCII(cx, GetErrorMessage, nullptr,
+                              JSMSG_BIGINT_TO_NUMBER);
+    return false;
+}
+
+static inline bool
+TryBigIntBinaryFunction(JSContext* cx,
+                        int32_t fn(JSContext*, HandleBigInt, HandleBigInt),
+                        HandleValue lhs, HandleValue rhs,
+                        MutableHandleValue res)
+{
+    if (lhs.isBigInt() && rhs.isBigInt()) {
+        RootedBigInt x(cx, lhs.toBigInt());
+        RootedBigInt y(cx, rhs.toBigInt());
+        res.setInt32(fn(cx, x, y));
+        return true;
+    }
+    JS_ReportErrorNumberASCII(cx, GetErrorMessage, nullptr,
+                              JSMSG_BIGINT_TO_NUMBER);
+    return false;
+}
+#endif
+
 /*
  * Every possible consumer of MagicValue(JS_OPTIMIZED_ARGUMENTS) (as determined
  * by ScriptAnalysis::needsArgsObj) must check for these magic values and, when
