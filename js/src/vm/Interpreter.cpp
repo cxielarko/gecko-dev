@@ -799,6 +799,14 @@ EqualGivenSameType(JSContext* cx, HandleValue lval, HandleValue rval, bool* equa
         *equal = (lval.toDouble() == rval.toDouble());
         return true;
     }
+#ifdef ENABLE_BIGINT
+    if (lval.isBigInt()) {
+        RootedBigInt x(cx, lval.toBigInt());
+        RootedBigInt y(cx, rval.toBigInt());
+        *equal = (BigInt::Compare(x, y) == 0);
+        return true;
+    }
+#endif
     if (lval.isGCThing()) {  // objects or symbols
         *equal = (lval.toGCThing() == rval.toGCThing());
         return true;
@@ -878,6 +886,23 @@ js::LooselyEqual(JSContext* cx, HandleValue lval, HandleValue rval, bool* result
         return true;
     }
 
+#ifdef ENABLE_BIGINT
+    if ((lval.isBigInt() && rval.isString()) || (lval.isString() && rval.isBigInt())) {
+        RootedValue rv(cx);
+        if (!BigInt::CompareString(cx, lval, rval, &rv))
+            return false;
+        if (rv.isUndefined()) {
+            *result = false;
+            return true;
+        }
+        int32_t r;
+        if (!ToInt32(cx, rv, &r))
+            return false;
+        *result = (r == 0);
+        return true;
+    }
+#endif
+
     // Step 8.
     if (lval.isBoolean())
         return LooselyEqualBooleanAndOther(cx, lval, rval, result);
@@ -887,7 +912,12 @@ js::LooselyEqual(JSContext* cx, HandleValue lval, HandleValue rval, bool* result
         return LooselyEqualBooleanAndOther(cx, rval, lval, result);
 
     // Step 10.
-    if ((lval.isString() || lval.isNumber() || lval.isSymbol()) && rval.isObject()) {
+    if ((lval.isString() || lval.isNumber() || lval.isSymbol()
+#ifdef ENABLE_BIGINT
+         || lval.isBigInt()
+#endif
+            ) && rval.isObject()
+        ) {
         RootedValue rvalue(cx, rval);
         if (!ToPrimitive(cx, &rvalue))
             return false;
@@ -895,12 +925,33 @@ js::LooselyEqual(JSContext* cx, HandleValue lval, HandleValue rval, bool* result
     }
 
     // Step 11.
-    if (lval.isObject() && (rval.isString() || rval.isNumber() || rval.isSymbol())) {
+    if (lval.isObject() && (rval.isString() || rval.isNumber() || rval.isSymbol()
+#ifdef ENABLE_BIGINT
+                            || rval.isBigInt()
+#endif
+            )) {
         RootedValue lvalue(cx, lval);
         if (!ToPrimitive(cx, &lvalue))
             return false;
         return LooselyEqual(cx, lvalue, rval, result);
     }
+
+#ifdef ENABLE_BIGINT
+    if ((lval.isBigInt() && rval.isNumber()) || (lval.isNumber() && rval.isBigInt())) {
+        RootedValue rv(cx);
+        if (!BigInt::CompareNumber(cx, lval, rval, &rv))
+            return false;
+        if (rv.isUndefined()) {
+            *result = false;
+            return true;
+        }
+        int32_t r;
+        if (!ToInt32(cx, rv, &r))
+            return false;
+        *result = (r == 0);
+        return true;
+    }
+#endif
 
     // Step 12.
     *result = false;
