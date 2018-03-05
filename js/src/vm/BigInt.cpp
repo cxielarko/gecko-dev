@@ -358,6 +358,64 @@ BigInt::NumberValue(JSContext* cx, HandleValue val, MutableHandleValue res)
     return true;
 }
 
+bool
+BigInt::CompareNumber(JSContext* cx, HandleValue lhs, HandleValue rhs, MutableHandleValue res)
+{
+    if (lhs.isBigInt()) {
+        MOZ_ASSERT(rhs.isNumber());
+        RootedBigInt lhs2(cx, lhs.toBigInt());
+        return CompareNumber(cx, lhs2, rhs.toNumber(), res);
+    }
+
+    MOZ_ASSERT(lhs.isNumber() && rhs.isBigInt());
+    RootedBigInt rhs2(cx, rhs.toBigInt());
+    return CompareNumber(cx, lhs.toNumber(), rhs2, res);
+}
+
+bool
+BigInt::CompareNumber(JSContext* cx, HandleBigInt lhs, double rhs, MutableHandleValue res)
+{
+    if (mozilla::IsNaN(rhs)) {
+        res.setUndefined();
+        return true;
+    }
+
+    res.setInt32(mpz_cmp_d(lhs->num_, rhs));
+    return true;
+}
+
+bool
+BigInt::CompareNumber(JSContext* cx, double lhs, HandleBigInt rhs, MutableHandleValue res)
+{
+    if (mozilla::IsNaN(lhs)) {
+        res.setUndefined();
+        return true;
+    }
+
+    res.setInt32(-mpz_cmp_d(rhs->num_, lhs));
+    return true;
+}
+
+bool
+BigInt::CompareString(JSContext* cx, HandleValue lhs, HandleValue rhs, MutableHandleValue res)
+{
+    if (lhs.isBigInt()) {
+        MOZ_ASSERT(rhs.isString());
+        RootedBigInt lhs2(cx, lhs.toBigInt());
+        double d;
+        if (!ToNumber(cx, rhs, &d))
+            return false;
+        return CompareNumber(cx, lhs2, d, res);
+    }
+
+    MOZ_ASSERT(lhs.isString() && rhs.isBigInt());
+    RootedBigInt rhs2(cx, rhs.toBigInt());
+    double d;
+    if (!ToNumber(cx, lhs, &d))
+        return false;
+    return CompareNumber(cx, d, rhs2, res);
+}
+
 JSString*
 BigInt::ToString(JSContext* cx, HandleBigInt x, int radix)
 {
