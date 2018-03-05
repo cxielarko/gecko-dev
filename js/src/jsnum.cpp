@@ -1628,6 +1628,23 @@ js::ToNumberSlow(JSContext* cx, HandleValue v_, double* out)
 #endif
 }
 
+bool
+js::ToNumericSlow(JSContext* cx, MutableHandleValue vp)
+{
+    if (!vp.isPrimitive()) {
+        if (cx->helperThread())
+            return false;
+        if (!ToPrimitive(cx, JSTYPE_NUMBER, vp))
+            return false;
+    }
+#ifdef ENABLE_BIGINT
+    if (vp.isBigInt()) {
+        return true;
+    }
+#endif
+    return ToNumber(cx, vp);
+}
+
 /*
  * Convert a value to an int8_t, according to the WebIDL rules for byte
  * conversion. Return converted value in *out on success, false on failure.
