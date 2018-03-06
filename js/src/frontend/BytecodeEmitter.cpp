@@ -4064,12 +4064,22 @@ BytecodeEmitter::emitPropIncDec(ParseNode* pn)
     }
     if (!emitAtomOp(pn->pn_kid, isSuper? JSOP_GETPROP_SUPER : JSOP_GETPROP)) // OBJ V
         return false;
+#ifdef ENABLE_BIGINT
+    if (!emit1(JSOP_NUMERIC_POS))                   // OBJ N
+        return false;
+#else
     if (!emit1(JSOP_POS))                           // OBJ N
         return false;
+#endif
     if (post && !emit1(JSOP_DUP))                   // OBJ N? N
         return false;
+#ifdef ENABLE_BIGINT
+    if (!emit1(JSOP_NUMERIC_ONE))                   // OBJ N? N 1
+        return false;
+#else
     if (!emit1(JSOP_ONE))                           // OBJ N? N 1
         return false;
+#endif
     if (!emit1(binop))                              // OBJ N? N+1
         return false;
 
@@ -4133,12 +4143,22 @@ BytecodeEmitter::emitNameIncDec(ParseNode* pn)
         JSAtom* name = pn->pn_kid->name();
         if (!bce->emitGetNameAtLocationForCompoundAssignment(name, loc)) // ENV? V
             return false;
+#ifdef ENABLE_BIGINT
+        if (!bce->emit1(JSOP_NUMERIC_POS))                 // ENV? N
+            return false;
+#else
         if (!bce->emit1(JSOP_POS))                         // ENV? N
             return false;
+#endif
         if (post && !bce->emit1(JSOP_DUP))                 // ENV? N? N
             return false;
+#ifdef ENABLE_BIGINT
+        if (!bce->emit1(JSOP_NUMERIC_ONE))                 // ENV? N? N 1
+            return false;
+#else
         if (!bce->emit1(JSOP_ONE))                         // ENV? N? N 1
             return false;
+#endif
         if (!bce->emit1(binop))                            // ENV? N? N+1
             return false;
 
@@ -4313,12 +4333,22 @@ BytecodeEmitter::emitElemIncDec(ParseNode* pn)
     }
     if (!emitElemOpBase(getOp))                         // OBJ KEY V
         return false;
+#ifdef ENABLE_BIGINT
+    if (!emit1(JSOP_NUMERIC_POS))                       // OBJ KEY N
+        return false;
+#else
     if (!emit1(JSOP_POS))                               // OBJ KEY N
         return false;
+#endif
     if (post && !emit1(JSOP_DUP))                       // OBJ KEY N? N
         return false;
+#ifdef ENABLE_BIGINT
+    if (!emit1(JSOP_NUMERIC_ONE))                       // OBJ KEY N? N 1
+        return false;
+#else
     if (!emit1(JSOP_ONE))                               // OBJ KEY N? N 1
         return false;
+#endif
     if (!emit1(binop))                                  // OBJ KEY N? N+1
         return false;
 
