@@ -1578,47 +1578,76 @@ AddOperation(JSContext* cx, MutableHandleValue lhs, MutableHandleValue rhs, Muta
         }
         res.setString(str);
     } else {
-        double l, r;
-        if (!ToNumber(cx, lhs, &l) || !ToNumber(cx, rhs, &r))
+        if (!ToNumeric(cx, lhs) || !ToNumeric(cx, rhs)) {
             return false;
-        res.setNumber(l + r);
+        }
+        if (lhs.isNumber() && rhs.isNumber()) {
+            res.setNumber(lhs.toNumber() + rhs.toNumber());
+            return true;
+        }
+#ifdef ENABLE_BIGINT
+        return TryBigIntBinaryFunction(cx, BigInt::Add, lhs, rhs, res);
+#else
+        return false;
+#endif
     }
 
     return true;
 }
 
 static MOZ_ALWAYS_INLINE bool
-SubOperation(JSContext* cx, HandleValue lhs, HandleValue rhs, MutableHandleValue res)
+SubOperation(JSContext* cx, MutableHandleValue lhs, MutableHandleValue rhs, MutableHandleValue res)
 {
-    double d1, d2;
-    if (!ToNumber(cx, lhs, &d1) || !ToNumber(cx, rhs, &d2))
+    if (!ToNumeric(cx, lhs) || !ToNumeric(cx, rhs)) {
         return false;
-    res.setNumber(d1 - d2);
-    return true;
+    }
+    if (lhs.isNumber() && rhs.isNumber()) {
+        res.setNumber(lhs.toNumber() - rhs.toNumber());
+        return true;
+    }
+#ifdef ENABLE_BIGINT
+    return TryBigIntBinaryFunction(cx, BigInt::Sub, lhs, rhs, res);
+#else
+    return false;
+#endif
 }
 
 static MOZ_ALWAYS_INLINE bool
-MulOperation(JSContext* cx, HandleValue lhs, HandleValue rhs, MutableHandleValue res)
+MulOperation(JSContext* cx, MutableHandleValue lhs, MutableHandleValue rhs, MutableHandleValue res)
 {
-    double d1, d2;
-    if (!ToNumber(cx, lhs, &d1) || !ToNumber(cx, rhs, &d2))
+    if (!ToNumeric(cx, lhs) || !ToNumeric(cx, rhs)) {
         return false;
-    res.setNumber(d1 * d2);
-    return true;
+    }
+    if (lhs.isNumber() && rhs.isNumber()) {
+        res.setNumber(lhs.toNumber() * rhs.toNumber());
+        return true;
+    }
+#ifdef ENABLE_BIGINT
+    return TryBigIntBinaryFunction(cx, BigInt::Mul, lhs, rhs, res);
+#else
+    return false;
+#endif
 }
 
 static MOZ_ALWAYS_INLINE bool
-DivOperation(JSContext* cx, HandleValue lhs, HandleValue rhs, MutableHandleValue res)
+DivOperation(JSContext* cx, MutableHandleValue lhs, MutableHandleValue rhs, MutableHandleValue res)
 {
-    double d1, d2;
-    if (!ToNumber(cx, lhs, &d1) || !ToNumber(cx, rhs, &d2))
+    if (!ToNumeric(cx, lhs) || !ToNumeric(cx, rhs)) {
         return false;
-    res.setNumber(NumberDiv(d1, d2));
-    return true;
+    }
+    if (lhs.isNumber() && rhs.isNumber()) {
+        res.setNumber(NumberDiv(lhs.toNumber(), rhs.toNumber()));
+        return true;
+    }
+#ifdef ENABLE_BIGINT
+    return TryBigIntBinaryFunction(cx, BigInt::Div, lhs, rhs, res);
+#else
+    return false;
+#endif
 }
 
 static MOZ_ALWAYS_INLINE bool
-ModOperation(JSContext* cx, HandleValue lhs, HandleValue rhs, MutableHandleValue res)
+ModOperation(JSContext* cx, MutableHandleValue lhs, MutableHandleValue rhs, MutableHandleValue res)
 {
     int32_t l, r;
     if (lhs.isInt32() && rhs.isInt32() &&
@@ -1628,12 +1657,34 @@ ModOperation(JSContext* cx, HandleValue lhs, HandleValue rhs, MutableHandleValue
         return true;
     }
 
-    double d1, d2;
-    if (!ToNumber(cx, lhs, &d1) || !ToNumber(cx, rhs, &d2))
+    if (!ToNumeric(cx, lhs) || !ToNumeric(cx, rhs)) {
         return false;
+    }
+    if (lhs.isNumber() && rhs.isNumber()) {
+        res.setNumber(NumberMod(lhs.toNumber(), rhs.toNumber()));
+        return true;
+    }
+#ifdef ENABLE_BIGINT
+    return TryBigIntBinaryFunction(cx, BigInt::Mod, lhs, rhs, res);
+#else
+    return false;
+#endif
+}
 
-    res.setNumber(NumberMod(d1, d2));
-    return true;
+static MOZ_ALWAYS_INLINE bool
+PowOperation(JSContext* cx, MutableHandleValue lhs, MutableHandleValue rhs, MutableHandleValue res)
+{
+    if (!ToNumeric(cx, lhs) || !ToNumeric(cx, rhs)) {
+        return false;
+    }
+    if (lhs.isNumber() && rhs.isNumber()) {
+        return math_pow_handle(cx, lhs, rhs, res);
+    }
+#ifdef ENABLE_BIGINT
+    return TryBigIntBinaryFunction(cx, BigInt::Pow, lhs, rhs, res);
+#else
+    return false;
+#endif
 }
 
 static MOZ_ALWAYS_INLINE bool
@@ -2636,7 +2687,7 @@ CASE(JSOP_SUB)
     ReservedRooted<Value> lval(&rootValue0, REGS.sp[-2]);
     ReservedRooted<Value> rval(&rootValue1, REGS.sp[-1]);
     MutableHandleValue res = REGS.stackHandleAt(-2);
-    if (!SubOperation(cx, lval, rval, res))
+    if (!SubOperation(cx, &lval, &rval, res))
         goto error;
     REGS.sp--;
 }
@@ -2647,7 +2698,7 @@ CASE(JSOP_MUL)
     ReservedRooted<Value> lval(&rootValue0, REGS.sp[-2]);
     ReservedRooted<Value> rval(&rootValue1, REGS.sp[-1]);
     MutableHandleValue res = REGS.stackHandleAt(-2);
-    if (!MulOperation(cx, lval, rval, res))
+    if (!MulOperation(cx, &lval, &rval, res))
         goto error;
     REGS.sp--;
 }
@@ -2658,7 +2709,7 @@ CASE(JSOP_DIV)
     ReservedRooted<Value> lval(&rootValue0, REGS.sp[-2]);
     ReservedRooted<Value> rval(&rootValue1, REGS.sp[-1]);
     MutableHandleValue res = REGS.stackHandleAt(-2);
-    if (!DivOperation(cx, lval, rval, res))
+    if (!DivOperation(cx, &lval, &rval, res))
         goto error;
     REGS.sp--;
 }
@@ -2669,7 +2720,7 @@ CASE(JSOP_MOD)
     ReservedRooted<Value> lval(&rootValue0, REGS.sp[-2]);
     ReservedRooted<Value> rval(&rootValue1, REGS.sp[-1]);
     MutableHandleValue res = REGS.stackHandleAt(-2);
-    if (!ModOperation(cx, lval, rval, res))
+    if (!ModOperation(cx, &lval, &rval, res))
         goto error;
     REGS.sp--;
 }
@@ -2680,7 +2731,7 @@ CASE(JSOP_POW)
     ReservedRooted<Value> lval(&rootValue0, REGS.sp[-2]);
     ReservedRooted<Value> rval(&rootValue1, REGS.sp[-1]);
     MutableHandleValue res = REGS.stackHandleAt(-2);
-    if (!math_pow_handle(cx, lval, rval, res))
+    if (!math_pow_handle(cx, &lval, &rval, res))
         goto error;
     REGS.sp--;
 }
@@ -2708,7 +2759,7 @@ CASE(JSOP_NEG)
 {
     ReservedRooted<Value> val(&rootValue0, REGS.sp[-1]);
     MutableHandleValue res = REGS.stackHandleAt(-1);
-    if (!NegOperation(cx, val, res))
+    if (!NegOperation(cx, &val, res))
         goto error;
 }
 END_CASE(JSOP_NEG)
