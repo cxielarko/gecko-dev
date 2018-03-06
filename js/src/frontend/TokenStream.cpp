@@ -1469,6 +1469,9 @@ TokenStreamSpecific<CharT, AnyCharsAccess>::getTokenInternal(TokenKind* ttp, Mod
     DecimalPoint decimalPoint;
     const CharT* identStart;
     bool hadUnicodeEscape;
+#ifdef ENABLE_BIGINT
+    bool isBigInt = false;
+#endif
 
     // Check if in the middle of a template string. Have to get this out of
     // the way first.
@@ -1665,6 +1668,12 @@ TokenStreamSpecific<CharT, AnyCharsAccess>::getTokenInternal(TokenKind* ttp, Mod
                 c = getCharIgnoreEOL();
             } while (JS7_ISDEC(c));
         }
+#ifdef ENABLE_BIGINT
+        if (c == 'n') {
+            isBigInt = true;
+            c = getCharIgnoreEOL();
+        }
+#endif
         ungetCharIgnoreEOL(c);
 
         if (c != EOF) {
@@ -1681,6 +1690,22 @@ TokenStreamSpecific<CharT, AnyCharsAccess>::getTokenInternal(TokenKind* ttp, Mod
                 goto error;
             }
         }
+
+#ifdef ENABLE_BIGINT
+        if (isBigInt) {
+            size_t length = userbuf.addressOfNextRawChar() - numStart - 1;
+            JSAtom* atom = AtomizeChars(anyCharsAccess().cx, numStart, length);
+            if (!atom)
+                goto error;
+            RootedBigInt bi(anyCharsAccess().cx,
+                            BigInt::Parse(anyCharsAccess().cx, atom, 10));
+            if (!bi)
+                goto error;
+            tp->type = TokenKind::BigInt;
+            tp->setBigInt(bi);
+            goto out;
+        }
+#endif
 
         // Unlike identifiers and strings, numbers cannot contain escaped
         // chars, so we don't need to use tokenbuf.  Instead we can just
@@ -1790,6 +1815,13 @@ TokenStreamSpecific<CharT, AnyCharsAccess>::getTokenInternal(TokenKind* ttp, Mod
             numStart = userbuf.addressOfNextRawChar() - 1;
             goto decimal;
         }
+
+#ifdef ENABLE_BIGINT
+        if (c == 'n') {
+            isBigInt = true;
+            c = getCharIgnoreEOL();
+        }
+#endif
         ungetCharIgnoreEOL(c);
 
         if (c != EOF) {
@@ -1806,6 +1838,22 @@ TokenStreamSpecific<CharT, AnyCharsAccess>::getTokenInternal(TokenKind* ttp, Mod
                 goto error;
             }
         }
+
+#ifdef ENABLE_BIGINT
+        if (isBigInt) {
+            size_t length = userbuf.addressOfNextRawChar() - numStart - 1;
+            JSAtom* atom = AtomizeChars(anyCharsAccess().cx, numStart, length);
+            if (!atom)
+                goto error;
+            RootedBigInt bi(anyCharsAccess().cx,
+                            BigInt::Parse(anyCharsAccess().cx, atom, radix));
+            if (!bi)
+                goto error;
+            tp->type = TokenKind::BigInt;
+            tp->setBigInt(bi);
+            goto out;
+        }
+#endif
 
         double dval;
         const char16_t* dummy;

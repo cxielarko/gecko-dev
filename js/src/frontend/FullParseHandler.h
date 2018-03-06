@@ -122,6 +122,16 @@ class FullParseHandler
         return pn;
     }
 
+#ifdef ENABLE_BIGINT
+    ParseNode* newBigInt(BigInt* bigint, const TokenPos& pos) {
+        ParseNode* pn = new_<NullaryNode>(ParseNodeKind::BigInt, pos);
+        if (!pn)
+            return nullptr;
+        pn->initBigInt(bigint);
+        return pn;
+    }
+#endif
+
     ParseNode* newBooleanLiteral(bool cond, const TokenPos& pos) {
         return new_<BooleanLiteral>(cond, pos);
     }

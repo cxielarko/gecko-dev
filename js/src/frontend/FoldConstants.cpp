@@ -363,6 +363,9 @@ ContainsHoistedDeclaration(JSContext* cx, ParseNode* node, bool* result)
       case ParseNodeKind::This:
       case ParseNodeKind::Elision:
       case ParseNodeKind::Number:
+#ifdef ENABLE_BIGINT
+      case ParseNodeKind::BigInt:
+#endif
       case ParseNodeKind::New:
       case ParseNodeKind::Generator:
       case ParseNodeKind::ParamsBody:
@@ -1861,6 +1864,11 @@ Fold(JSContext* cx, ParseNode** pnp, PerHandlerParser<FullParseHandler>& parser)
 
       case ParseNodeKind::Name:
         return FoldName(cx, pn, parser);
+
+#ifdef ENABLE_BIGINT
+      case ParseNodeKind::BigInt:
+        return true;
+#endif
 
       case ParseNodeKind::Limit: // invalid sentinel value
         MOZ_CRASH("invalid node kind");

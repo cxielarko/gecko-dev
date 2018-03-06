@@ -67,6 +67,7 @@ class ObjectBox;
     F(ObjectPropertyName) \
     F(ComputedName) \
     F(Number) \
+    F(BigInt) \
     F(String) \
     F(TemplateStringList) \
     F(TemplateString) \
@@ -586,6 +587,9 @@ class ParseNode
             friend class LoopControlStatement;
             PropertyName*    label;    /* target of break/continue statement */
         } loopControl;
+#ifdef ENABLE_BIGINT
+        BigInt* bigint;
+#endif
     } pn_u;
 
 #define pn_objbox       pn_u.name.objbox
@@ -608,6 +612,9 @@ class ParseNode
 #define pn_objbox       pn_u.name.objbox
 #define pn_expr         pn_u.name.expr
 #define pn_dval         pn_u.number.value
+#ifdef ENABLE_BIGINT
+#define pn_bigint       pn_u.bigint
+#endif
 
 
   public:
@@ -695,6 +702,9 @@ class ParseNode
     /* True if pn is a parsenode representing a literal constant. */
     bool isLiteral() const {
         return isKind(ParseNodeKind::Number) ||
+#ifdef ENABLE_BIGINT
+               isKind(ParseNodeKind::BigInt) ||
+#endif
                isKind(ParseNodeKind::String) ||
                isKind(ParseNodeKind::True) ||
                isKind(ParseNodeKind::False) ||
@@ -732,6 +742,14 @@ class ParseNode
         pn_u.number.value = value;
         pn_u.number.decimalPoint = decimalPoint;
     }
+
+#ifdef ENABLE_BIGINT
+    void initBigInt(BigInt* bigint) {
+        MOZ_ASSERT(pn_arity == PN_NULLARY);
+        MOZ_ASSERT(getKind() == ParseNodeKind::BigInt);
+        pn_u.bigint = bigint;
+    }
+#endif
 
     void makeEmpty() {
         MOZ_ASSERT(pn_arity == PN_LIST);

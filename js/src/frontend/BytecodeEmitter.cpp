@@ -3060,6 +3060,9 @@ BytecodeEmitter::checkSideEffects(ParseNode* pn, bool* answer)
       case ParseNodeKind::Elision:
       case ParseNodeKind::Generator:
       case ParseNodeKind::Number:
+#ifdef ENABLE_BIGINT
+      case ParseNodeKind::BigInt:
+#endif
       case ParseNodeKind::ObjectPropertyName:
         MOZ_ASSERT(pn->isArity(PN_NULLARY));
         *answer = false;
@@ -6457,6 +6460,10 @@ ParseNode::getConstantValue(JSContext* cx, AllowConstantObjects allowObjects,
       case ParseNodeKind::Number:
         vp.setNumber(pn_dval);
         return true;
+#ifdef ENABLE_BIGINT
+      case ParseNodeKind::BigInt:
+        return false;
+#endif
       case ParseNodeKind::TemplateString:
       case ParseNodeKind::String:
         vp.setString(pn_atom);
@@ -6945,6 +6952,16 @@ BytecodeEmitter::emitCopyDataProperties(CopyOption option)
     MOZ_ASSERT(depth - int(argc) == this->stackDepth);
     return true;
 }
+
+#ifdef ENABLE_BIGINT
+bool
+BytecodeEmitter::emitBigIntOp(BigInt* bigint)
+{
+    if (!constList.append(BigIntValue(bigint)))
+        return false;
+    return emitIndex32(JSOP_BIGINT, constList.length() - 1);
+}
+#endif
 
 bool
 BytecodeEmitter::emitIterator()
@@ -10948,6 +10965,13 @@ BytecodeEmitter::emitTree(ParseNode* pn, ValueUsage valueUsage /* = ValueUsage::
         if (!emitNumberOp(pn->pn_dval))
             return false;
         break;
+
+#ifdef ENABLE_BIGINT
+      case ParseNodeKind::BigInt:
+        if (!emitBigIntOp(pn->pn_bigint))
+            return false;
+        break;
+#endif
 
       case ParseNodeKind::RegExp:
         if (!emitRegExp(objectList.add(pn->as<RegExpLiteral>().objbox())))

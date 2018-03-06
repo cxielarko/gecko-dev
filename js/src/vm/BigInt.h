@@ -85,6 +85,7 @@ class BigInt : public js::gc::TenuredCell
 
     static bool ValueToBigInt(JSContext* cx, HandleValue val, MutableHandleValue res);
     static bool NumberValue(JSContext* cx, HandleValue val, MutableHandleValue res);
+    static BigInt* Parse(JSContext* cx, JSAtom* atom, int radix);
     static JSString* ToString(JSContext* cx, HandleBigInt x, int radix);
 
     static bool CompareNumber(JSContext* cx, HandleValue lhs, HandleValue rhs, MutableHandleValue res);

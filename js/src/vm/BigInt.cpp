@@ -361,6 +361,20 @@ BigInt::ValueToBigInt(JSContext* cx, HandleValue val, MutableHandleValue res)
     return false;
 }
 
+BigInt*
+BigInt::Parse(JSContext* cx, JSAtom* atom, int radix)
+{
+    MOZ_ASSERT(radix >= 0);
+    RootedString str(cx, atom);
+    RootedBigInt res(cx, StringToBigInt(cx, str, radix));
+    if (!res) {
+        JS_ReportErrorNumberASCII(cx, GetErrorMessage, nullptr,
+                                  JSMSG_BIGINT_INVALID_SYNTAX);
+        return nullptr;
+    }
+    return res;
+}
+
 bool
 BigInt::NumberValue(JSContext* cx, HandleValue val, MutableHandleValue res)
 {

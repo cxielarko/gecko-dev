@@ -194,6 +194,9 @@ PushNodeChildren(ParseNode* pn, NodeStack* stack)
       case ParseNodeKind::Elision:
       case ParseNodeKind::Generator:
       case ParseNodeKind::Number:
+#ifdef ENABLE_BIGINT
+      case ParseNodeKind::BigInt:
+#endif
       case ParseNodeKind::Break:
       case ParseNodeKind::Continue:
       case ParseNodeKind::Debugger:

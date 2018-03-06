@@ -2903,6 +2903,9 @@ ASTSerializer::expression(ParseNode* pn, MutableHandleValue dst)
       case ParseNodeKind::String:
       case ParseNodeKind::RegExp:
       case ParseNodeKind::Number:
+#ifdef ENABLE_BIGINT
+      case ParseNodeKind::BigInt:
+#endif
       case ParseNodeKind::True:
       case ParseNodeKind::False:
       case ParseNodeKind::Null:
@@ -3037,6 +3040,12 @@ ASTSerializer::literal(ParseNode* pn, MutableHandleValue dst)
       case ParseNodeKind::Number:
         val.setNumber(pn->pn_dval);
         break;
+
+#ifdef ENABLE_BIGINT
+      case ParseNodeKind::BigInt:
+        val.setBigInt(pn->pn_bigint);
+        break;
+#endif
 
       case ParseNodeKind::Null:
         val.setNull();

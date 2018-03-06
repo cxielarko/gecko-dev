@@ -9871,6 +9871,11 @@ GeneralParser<ParseHandler, CharT>::primaryExpr(YieldHandling yieldHandling,
       case TokenKind::Number:
         return newNumber(anyChars.currentToken());
 
+#ifdef ENABLE_BIGINT
+      case TokenKind::BigInt:
+        return newBigInt(anyChars.currentToken());
+#endif
+
       case TokenKind::True:
         return handler.newBooleanLiteral(true, pos());
       case TokenKind::False:

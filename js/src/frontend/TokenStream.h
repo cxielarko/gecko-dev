@@ -335,6 +335,9 @@ struct Token
             double      value;          // floating point number
             DecimalPoint decimalPoint;  // literal contains '.'
         } number;
+#ifdef ENABLE_BIGINT
+        BigInt* bigint;                 // BigInt literal
+#endif
         RegExpFlag      reflags;        // regexp flags; use tokenbuf to access
                                         //   regexp chars
     } u;
@@ -369,6 +372,13 @@ struct Token
         u.number.decimalPoint = decimalPoint;
     }
 
+#ifdef ENABLE_BIGINT
+    void setBigInt(BigInt* bigint) {
+        MOZ_ASSERT(type == TokenKind::BigInt);
+        u.bigint = bigint;
+    }
+#endif
+
     // Type-safe accessors
 
     PropertyName* name() const {
@@ -398,6 +408,13 @@ struct Token
         MOZ_ASSERT(type == TokenKind::Number);
         return u.number.decimalPoint;
     }
+
+#ifdef ENABLE_BIGINT
+    BigInt* bigint() const {
+        MOZ_ASSERT(type == TokenKind::BigInt);
+        return u.bigint;
+    }
+#endif
 };
 
 extern TokenKind

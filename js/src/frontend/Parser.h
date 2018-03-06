@@ -1234,6 +1234,12 @@ class GeneralParser
         return handler.newNumber(tok.number(), tok.decimalPoint(), tok.pos);
     }
 
+#ifdef ENABLE_BIGINT
+    Node newBigInt(const Token& tok) {
+        return handler.newBigInt(tok.bigint(), tok.pos);
+    }
+#endif
+
   protected:
     // Match the current token against the BindingIdentifier production with
     // the given Yield parameter.  If there is no match, report a syntax
