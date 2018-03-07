@@ -1534,7 +1534,7 @@ GetExistingPropertyValue(JSContext* cx, HandleNativeObject obj, HandleId id,
                          Handle<PropertyResult> prop, MutableHandleValue vp)
 {
     if (prop.isDenseOrTypedArrayElement()) {
-        vp.set(obj->getDenseOrTypedArrayElement(JSID_TO_INT(id)));
+        vp.set(obj->getDenseOrTypedArrayElement(cx, JSID_TO_INT(id)));
         return true;
     }
     MOZ_ASSERT(!cx->helperThread());
@@ -2118,7 +2118,7 @@ js::NativeGetOwnPropertyDescriptor(JSContext* cx, HandleNativeObject obj, Handle
         desc.setSetter(nullptr);
 
         if (prop.isDenseOrTypedArrayElement()) {
-            desc.value().set(obj->getDenseOrTypedArrayElement(JSID_TO_INT(id)));
+            desc.value().set(obj->getDenseOrTypedArrayElement(cx, JSID_TO_INT(id)));
         } else {
             RootedShape shape(cx, prop.shape());
             if (!NativeGetExistingProperty(cx, obj, obj, shape, desc.value()))
@@ -2393,7 +2393,7 @@ NativeGetPropertyInline(JSContext* cx,
             // Steps 5-8. Special case for dense elements because
             // GetExistingProperty doesn't support those.
             if (prop.isDenseOrTypedArrayElement()) {
-                vp.set(pobj->getDenseOrTypedArrayElement(JSID_TO_INT(id)));
+                vp.set(pobj->getDenseOrTypedArrayElement(cx, JSID_TO_INT(id)));
                 return true;
             }
 
@@ -2658,16 +2658,18 @@ SetDenseOrTypedArrayElement(JSContext* cx, HandleNativeObject obj, uint32_t inde
                             ObjectOpResult& result)
 {
     if (obj->is<TypedArrayObject>()) {
-        double d;
-        if (!ToNumber(cx, v, &d))
+        RootedValue numericVal(cx, v);
+        if (!obj->as<TypedArrayObject>().convert(cx, &numericVal))
             return false;
 
         // Silently do nothing for out-of-bounds sets, for consistency with
         // current behavior.  (ES6 currently says to throw for this in
         // strict mode code, so we may eventually need to change.)
         uint32_t len = obj->as<TypedArrayObject>().length();
-        if (index < len)
-            TypedArrayObject::setElement(obj->as<TypedArrayObject>(), index, d);
+        if (index < len) {
+            if (!TypedArrayObject::setElement(cx, obj->as<TypedArrayObject>(), index, numericVal))
+                return false;
+        }
         return result.succeed();
     }
 

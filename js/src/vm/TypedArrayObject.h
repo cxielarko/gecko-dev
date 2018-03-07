@@ -170,14 +170,14 @@ class TypedArrayObject : public NativeObject
     void assertZeroLengthArrayData() const {};
 #endif
 
-    Value getElement(uint32_t index);
-    static void setElement(TypedArrayObject& obj, uint32_t index, double d);
+    Value getElement(JSContext* cx, uint32_t index);
+    static bool setElement(JSContext* cx, TypedArrayObject& obj, uint32_t index, const Value& v);
 
     /*
      * Copy all elements from this typed array to vp. vp must point to rooted
      * memory.
      */
-    void getElements(Value* vp);
+    void getElements(JSContext* cx, Value* vp);
 
     void notifyBufferDetached(JSContext* cx, void* newData);
 
@@ -252,6 +252,8 @@ class TypedArrayObject : public NativeObject
 
         return buffer->isDetached();
     }
+
+    bool convert(JSContext* cx, MutableHandleValue v) const;
 
   private:
     void* viewDataEither_() const {

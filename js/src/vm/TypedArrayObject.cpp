@@ -68,6 +68,15 @@ using JS::ToUint32;
  * the subclasses.
  */
 
+bool
+TypedArrayObject::convert(JSContext* cx, MutableHandleValue v) const
+{
+    switch (type()) {
+    default:
+        return ToNumeric(cx, v);
+    }
+}
+
 /* static */ int
 TypedArrayObject::lengthOffset()
 {
@@ -1002,7 +1011,7 @@ class TypedArrayObjectTemplate : public TypedArrayObject
         jit::AtomicOperations::storeSafeWhenRacy(tarray.viewDataEither().cast<NativeType*>() + index, val);
     }
 
-    static Value getIndexValue(JSObject* tarray, uint32_t index);
+    static Value getIndexValue(JSContext* cx, JSObject* tarray, uint32_t index);
 };
 
 #define CREATE_TYPE_FOR_TYPED_ARRAY(T, N) \
@@ -1731,7 +1740,7 @@ TypedArrayObject::sharedTypedArrayPrototypeClass = {
 // less than 32-bits in size.
 template<typename NativeType>
 Value
-TypedArrayObjectTemplate<NativeType>::getIndexValue(JSObject* tarray, uint32_t index)
+TypedArrayObjectTemplate<NativeType>::getIndexValue(JSContext* cx, JSObject* tarray, uint32_t index)
 {
     static_assert(sizeof(NativeType) < 4,
                   "this method must only handle NativeType values that are "
@@ -1745,14 +1754,14 @@ namespace {
 // and we need to specialize for 32-bit integers and floats
 template<>
 Value
-TypedArrayObjectTemplate<int32_t>::getIndexValue(JSObject* tarray, uint32_t index)
+TypedArrayObjectTemplate<int32_t>::getIndexValue(JSContext* cx, JSObject* tarray, uint32_t index)
 {
     return Int32Value(getIndex(tarray, index));
 }
 
 template<>
 Value
-TypedArrayObjectTemplate<uint32_t>::getIndexValue(JSObject* tarray, uint32_t index)
+TypedArrayObjectTemplate<uint32_t>::getIndexValue(JSContext* cx, JSObject* tarray, uint32_t index)
 {
     uint32_t val = getIndex(tarray, index);
     return NumberValue(val);
@@ -1760,7 +1769,7 @@ TypedArrayObjectTemplate<uint32_t>::getIndexValue(JSObject* tarray, uint32_t ind
 
 template<>
 Value
-TypedArrayObjectTemplate<float>::getIndexValue(JSObject* tarray, uint32_t index)
+TypedArrayObjectTemplate<float>::getIndexValue(JSContext* cx, JSObject* tarray, uint32_t index)
 {
     float val = getIndex(tarray, index);
     double dval = val;
@@ -1780,7 +1789,7 @@ TypedArrayObjectTemplate<float>::getIndexValue(JSObject* tarray, uint32_t index)
 
 template<>
 Value
-TypedArrayObjectTemplate<double>::getIndexValue(JSObject* tarray, uint32_t index)
+TypedArrayObjectTemplate<double>::getIndexValue(JSContext* cx, JSObject* tarray, uint32_t index)
 {
     double val = getIndex(tarray, index);
 
@@ -1797,28 +1806,27 @@ TypedArrayObjectTemplate<double>::getIndexValue(JSObject* tarray, uint32_t index
 } /* anonymous namespace */
 
 Value
-TypedArrayObject::getElement(uint32_t index)
+TypedArrayObject::getElement(JSContext* cx, uint32_t index)
 {
     switch (type()) {
       case Scalar::Int8:
-        return Int8Array::getIndexValue(this, index);
+        return Int8Array::getIndexValue(cx, this, index);
       case Scalar::Uint8:
-        return Uint8Array::getIndexValue(this, index);
+        return Uint8Array::getIndexValue(cx, this, index);
       case Scalar::Int16:
-        return Int16Array::getIndexValue(this, index);
+        return Int16Array::getIndexValue(cx, this, index);
       case Scalar::Uint16:
-        return Uint16Array::getIndexValue(this, index);
+        return Uint16Array::getIndexValue(cx, this, index);
       case Scalar::Int32:
-        return Int32Array::getIndexValue(this, index);
+        return Int32Array::getIndexValue(cx, this, index);
       case Scalar::Uint32:
-        return Uint32Array::getIndexValue(this, index);
+        return Uint32Array::getIndexValue(cx, this, index);
       case Scalar::Float32:
-        return Float32Array::getIndexValue(this, index);
+        return Float32Array::getIndexValue(cx, this, index);
       case Scalar::Float64:
-        return Float64Array::getIndexValue(this, index);
+        return Float64Array::getIndexValue(cx, this, index);
       case Scalar::Uint8Clamped:
-        return Uint8ClampedArray::getIndexValue(this, index);
-      case Scalar::Int64:
+        return Uint8ClampedArray::getIndexValue(cx, this, index);
       case Scalar::Float32x4:
       case Scalar::Int8x16:
       case Scalar::Int16x8:
@@ -1830,10 +1838,15 @@ TypedArrayObject::getElement(uint32_t index)
     MOZ_CRASH("Unknown TypedArray type");
 }
 
-void
-TypedArrayObject::setElement(TypedArrayObject& obj, uint32_t index, double d)
+bool
+TypedArrayObject::setElement(JSContext* cx, TypedArrayObject& obj, uint32_t index, const Value& v)
 {
     MOZ_ASSERT(index < obj.length());
+
+    double d;
+    if (v.isNumber()) {
+        d = v.toNumber();
+    }
 
 #ifdef JS_MORE_DETERMINISTIC
     // See the comment in ElementSpecific::doubleToNative.
@@ -1843,31 +1856,31 @@ TypedArrayObject::setElement(TypedArrayObject& obj, uint32_t index, double d)
     switch (obj.type()) {
       case Scalar::Int8:
         Int8Array::setIndexValue(obj, index, d);
-        return;
+        return true;
       case Scalar::Uint8:
         Uint8Array::setIndexValue(obj, index, d);
-        return;
+        return true;
       case Scalar::Uint8Clamped:
         Uint8ClampedArray::setIndexValue(obj, index, d);
-        return;
+        return true;
       case Scalar::Int16:
         Int16Array::setIndexValue(obj, index, d);
-        return;
+        return true;
       case Scalar::Uint16:
         Uint16Array::setIndexValue(obj, index, d);
-        return;
+        return true;
       case Scalar::Int32:
         Int32Array::setIndexValue(obj, index, d);
-        return;
+        return true;
       case Scalar::Uint32:
         Uint32Array::setIndexValue(obj, index, d);
-        return;
+        return true;
       case Scalar::Float32:
         Float32Array::setIndexValue(obj, index, d);
-        return;
+        return true;
       case Scalar::Float64:
         Float64Array::setIndexValue(obj, index, d);
-        return;
+        return true;
       case Scalar::Int64:
       case Scalar::Float32x4:
       case Scalar::Int8x16:
@@ -1881,7 +1894,7 @@ TypedArrayObject::setElement(TypedArrayObject& obj, uint32_t index, double d)
 }
 
 void
-TypedArrayObject::getElements(Value* vp)
+TypedArrayObject::getElements(JSContext* cx, Value* vp)
 {
     uint32_t length = this->length();
     MOZ_ASSERT_IF(length > 0, !hasDetachedBuffer());
@@ -1890,7 +1903,7 @@ TypedArrayObject::getElements(Value* vp)
 #define GET_ELEMENTS(T, N) \
       case Scalar::N: \
         for (uint32_t i = 0; i < length; ++i, ++vp) \
-            *vp = N##Array::getIndexValue(this, i); \
+            *vp = N##Array::getIndexValue(cx, this, i); \
         break;
 JS_FOR_EACH_TYPED_ARRAY(GET_ELEMENTS)
 #undef GET_ELEMENTS
@@ -2267,8 +2280,8 @@ js::DefineTypedArrayElement(JSContext* cx, HandleObject obj, uint64_t index,
         // Steps 1-2 are enforced by the caller.
 
         // Step 3.
-        double numValue;
-        if (!ToNumber(cx, desc.value(), &numValue))
+        RootedValue numericValue(cx, desc.value());
+        if (!obj->as<TypedArrayObject>().convert(cx, &numericValue))
             return false;
 
         // Steps 4-5, 8-9.
@@ -2276,7 +2289,8 @@ js::DefineTypedArrayElement(JSContext* cx, HandleObject obj, uint64_t index,
             return result.fail(JSMSG_TYPED_ARRAY_DETACHED);
 
         // Steps 10-16.
-        TypedArrayObject::setElement(obj->as<TypedArrayObject>(), index, numValue);
+        if (!TypedArrayObject::setElement(cx, obj->as<TypedArrayObject>(), index, numericValue))
+            return false;
     }
 
     // Step xii.

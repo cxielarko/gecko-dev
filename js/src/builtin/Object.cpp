@@ -1310,10 +1310,10 @@ TryEnumerableOwnPropertiesNative(JSContext* cx, HandleObject obj, MutableHandleV
             {
                 value.setString(str);
             } else if (kind == EnumerableOwnPropertiesKind::Values) {
-                value.set(tobj->getElement(i));
+                value.set(tobj->getElement(cx, i));
             } else {
                 key.setString(str);
-                value.set(tobj->getElement(i));
+                value.set(tobj->getElement(cx, i));
                 if (!NewValuePair(cx, key, value, &value))
                     return false;
             }
@@ -1560,7 +1560,7 @@ EnumerableOwnProperties(JSContext* cx, const JS::CallArgs& args)
         if (obj->is<NativeObject>()) {
             HandleNativeObject nobj = obj.as<NativeObject>();
             if (JSID_IS_INT(id) && nobj->containsDenseElement(JSID_TO_INT(id))) {
-                value = nobj->getDenseOrTypedArrayElement(JSID_TO_INT(id));
+                value = nobj->getDenseOrTypedArrayElement(cx, JSID_TO_INT(id));
             } else {
                 shape = nobj->lookup(cx, id);
                 if (!shape || !shape->enumerable())
