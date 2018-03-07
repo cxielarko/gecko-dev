@@ -1608,6 +1608,10 @@ enum Type {
      * Treat the raw data type as a uint8_t.
      */
     Uint8Clamped,
+#ifdef ENABLE_BIGINT
+    BigInt64,
+    BigUint64,
+#endif
 
     /**
      * Types that don't have their own TypedArray equivalent, for now.
@@ -1636,6 +1640,10 @@ byteSize(Type atype)
       case Uint32:
       case Float32:
         return 4;
+#ifdef ENABLE_BIGINT
+      case BigInt64:
+      case BigUint64:
+#endif
       case Int64:
       case Float64:
         return 8;
@@ -1655,6 +1663,9 @@ isSignedIntType(Type atype) {
       case Int8:
       case Int16:
       case Int32:
+#ifdef ENABLE_BIGINT
+      case BigInt64:
+#endif
       case Int64:
       case Int8x16:
       case Int16x8:
@@ -1664,6 +1675,9 @@ isSignedIntType(Type atype) {
       case Uint8Clamped:
       case Uint16:
       case Uint32:
+#ifdef ENABLE_BIGINT
+      case BigUint64:
+#endif
       case Float32:
       case Float64:
       case Float32x4:
@@ -1683,6 +1697,10 @@ isSimdType(Type atype) {
       case Uint16:
       case Int32:
       case Uint32:
+#ifdef ENABLE_BIGINT
+      case BigInt64:
+      case BigUint64:
+#endif
       case Int64:
       case Float32:
       case Float64:
@@ -1715,6 +1733,10 @@ scalarByteSize(Type atype) {
       case Uint16:
       case Int32:
       case Uint32:
+#ifdef ENABLE_BIGINT
+      case BigInt64:
+      case BigUint64:
+#endif
       case Int64:
       case Float32:
       case Float64:
@@ -1807,6 +1829,14 @@ JS_NewInt32ArrayWithBuffer(JSContext* cx, JS::HandleObject arrayBuffer,
 extern JS_FRIEND_API(JSObject*)
 JS_NewUint32ArrayWithBuffer(JSContext* cx, JS::HandleObject arrayBuffer,
                             uint32_t byteOffset, int32_t length);
+#ifdef ENABLE_BIGINT
+extern JS_FRIEND_API(JSObject*)
+JS_NewBigInt64ArrayWithBuffer(JSContext* cx, JS::HandleObject arrayBuffer,
+                              uint32_t byteOffset, int32_t length);
+extern JS_FRIEND_API(JSObject*)
+JS_NewBigUint64ArrayWithBuffer(JSContext* cx, JS::HandleObject arrayBuffer,
+                               uint32_t byteOffset, int32_t length);
+#endif
 extern JS_FRIEND_API(JSObject*)
 JS_NewFloat32ArrayWithBuffer(JSContext* cx, JS::HandleObject arrayBuffer,
                              uint32_t byteOffset, int32_t length);
@@ -1903,6 +1933,12 @@ extern JS_FRIEND_API(JSObject*)
 UnwrapInt32Array(JSObject* obj);
 extern JS_FRIEND_API(JSObject*)
 UnwrapUint32Array(JSObject* obj);
+#ifdef ENABLE_BIGINT
+extern JS_FRIEND_API(JSObject*)
+UnwrapBigInt64Array(JSObject* obj);
+extern JS_FRIEND_API(JSObject*)
+UnwrapBigUint64Array(JSObject* obj);
+#endif
 extern JS_FRIEND_API(JSObject*)
 UnwrapFloat32Array(JSObject* obj);
 extern JS_FRIEND_API(JSObject*)
@@ -1930,6 +1966,10 @@ extern JS_FRIEND_DATA(const Class* const) Int16ArrayClassPtr;
 extern JS_FRIEND_DATA(const Class* const) Uint16ArrayClassPtr;
 extern JS_FRIEND_DATA(const Class* const) Int32ArrayClassPtr;
 extern JS_FRIEND_DATA(const Class* const) Uint32ArrayClassPtr;
+#ifdef ENABLE_BIGINT
+extern JS_FRIEND_DATA(const Class* const) BigInt64ArrayClassPtr;
+extern JS_FRIEND_DATA(const Class* const) BigUint64ArrayClassPtr;
+#endif
 extern JS_FRIEND_DATA(const Class* const) Float32ArrayClassPtr;
 extern JS_FRIEND_DATA(const Class* const) Float64ArrayClassPtr;
 

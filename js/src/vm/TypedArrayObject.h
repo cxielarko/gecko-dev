@@ -16,6 +16,20 @@
 #include "vm/ArrayBufferObject.h"
 #include "vm/SharedArrayObject.h"
 
+#ifdef ENABLE_BIGINT
+#define JS_FOR_EACH_TYPED_ARRAY(macro) \
+    macro(int8_t, Int8) \
+    macro(uint8_t, Uint8) \
+    macro(int16_t, Int16) \
+    macro(uint16_t, Uint16) \
+    macro(int32_t, Int32) \
+    macro(uint32_t, Uint32) \
+    macro(float, Float32) \
+    macro(double, Float64) \
+    macro(uint8_clamped, Uint8Clamped) \
+    macro(int64_t, BigInt64) \
+    macro(uint64_t, BigUint64)
+#else
 #define JS_FOR_EACH_TYPED_ARRAY(macro) \
     macro(int8_t, Int8) \
     macro(uint8_t, Uint8) \
@@ -26,6 +40,7 @@
     macro(float, Float32) \
     macro(double, Float64) \
     macro(uint8_clamped, Uint8Clamped)
+#endif
 
 typedef struct JSProperty JSProperty;
 
@@ -397,6 +412,10 @@ TypedArrayShift(Scalar::Type viewType)
       case Scalar::Uint32:
       case Scalar::Float32:
         return 2;
+#ifdef ENABLE_BIGINT
+      case Scalar::BigInt64:
+      case Scalar::BigUint64:
+#endif
       case Scalar::Int64:
       case Scalar::Float64:
         return 3;

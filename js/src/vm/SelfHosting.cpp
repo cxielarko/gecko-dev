@@ -23,6 +23,9 @@
 #include "jswrapper.h"
 #include "selfhosted.out.h"
 
+#ifdef ENABLE_BIGINT
+#include "builtin/BigIntObject.h"
+#endif
 #include "builtin/intl/Collator.h"
 #include "builtin/intl/DateTimeFormat.h"
 #include "builtin/intl/IntlObject.h"
@@ -165,6 +168,25 @@ intrinsic_ToSource(JSContext* cx, unsigned argc, Value* vp)
         return false;
     args.rval().setString(str);
     return true;
+}
+
+static bool
+intrinsic_ToIndex(JSContext* cx, unsigned argc, Value* vp)
+{
+    CallArgs args = CallArgsFromVp(argc, vp);
+    uint64_t result;
+    if (!ToIndex(cx, args[0], &result))
+        return false;
+    args.rval().setNumber(static_cast<double>(result));
+    return true;
+}
+
+static bool
+intrinsic_ToPrimitiveHintNumber(JSContext* cx, unsigned argc, Value* vp)
+{
+    CallArgs args = CallArgsFromVp(argc, vp);
+    args.rval().set(args[0]);
+    return ToPrimitive(cx, JSTYPE_NUMBER, args.rval());
 }
 
 static bool
@@ -2259,6 +2281,8 @@ static const JSFunctionSpec intrinsic_functions[] = {
     JS_INLINABLE_FN("ToString",      intrinsic_ToString,                1,0, IntrinsicToString),
     JS_FN("ToSource",                intrinsic_ToSource,                1,0),
     JS_FN("ToPropertyKey",           intrinsic_ToPropertyKey,           1,0),
+    JS_FN("ToIndex",                 intrinsic_ToIndex,                 1,0),
+    JS_FN("ToPrimitiveHintNumber",   intrinsic_ToPrimitiveHintNumber,   1,0),
     JS_INLINABLE_FN("IsCallable",    intrinsic_IsCallable,              1,0, IntrinsicIsCallable),
     JS_INLINABLE_FN("IsConstructor", intrinsic_IsConstructor,           1,0,
                     IntrinsicIsConstructor),
@@ -2584,6 +2608,10 @@ static const JSFunctionSpec intrinsic_functions[] = {
     JS_FN("IsPromiseObject", intrinsic_IsInstanceOfBuiltin<PromiseObject>, 1, 0),
     JS_FN("CallPromiseMethodIfWrapped", CallNonGenericSelfhostedMethod<Is<PromiseObject>>, 2, 0),
     JS_FN("PromiseResolve", intrinsic_PromiseResolve, 2, 0),
+
+#ifdef ENABLE_BIGINT
+    JS_FN("ToBigInt", intrinsic_ToBigInt, 1, 0),
+#endif
 
     JS_FS_END
 };

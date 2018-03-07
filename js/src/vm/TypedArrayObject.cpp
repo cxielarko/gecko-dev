@@ -43,6 +43,8 @@
 #include "vm/SelfHosting.h"
 #include "vm/SharedMem.h"
 #include "vm/WrapperObject.h"
+#include "vm/Interpreter.h"
+#include "vm/Interpreter-inl.h"
 
 #include "jsatominlines.h"
 
@@ -68,10 +70,58 @@ using JS::ToUint32;
  * the subclasses.
  */
 
+template <typename T, typename Ops>
+bool
+ElementSpecific<T, Ops>::valueToNative(JSContext* cx, HandleValue v, T* result)
+{
+    MOZ_ASSERT(!v.isMagic());
+
+#ifdef ENABLE_BIGINT
+    if (std::is_same<T, int64_t>::value) {
+        RootedValue biv(cx);
+        if (!BigInt::ValueToBigInt(cx, v, &biv))
+            return false;
+        RootedBigInt bi(cx, biv.toBigInt());
+        int64_t n;
+        if (!BigInt::ToInt64(cx, bi, n))
+            return false;
+        *result = T(n);
+        return true;
+    } else if (std::is_same<T, uint64_t>::value) {
+        RootedValue biv(cx);
+        if (!BigInt::ValueToBigInt(cx, v, &biv))
+            return false;
+        RootedBigInt bi(cx, biv.toBigInt());
+        uint64_t n;
+        if (!BigInt::ToUint64(cx, bi, n))
+            return false;
+        *result = T(n);
+        return true;
+    }
+#endif
+    if (MOZ_LIKELY(canConvertInfallibly(v, TypeIDOfType<T>::id))) {
+        *result = infallibleValueToNative(v);
+        return true;
+    }
+
+    double d;
+    MOZ_ASSERT(v.isString() || v.isObject() || v.isSymbol());
+    if (!(v.isString() ? StringToNumber(cx, v.toString(), &d) : ToNumber(cx, v, &d)))
+        return false;
+
+    *result = doubleToNative(d);
+    return true;
+}
+
 bool
 TypedArrayObject::convert(JSContext* cx, MutableHandleValue v) const
 {
     switch (type()) {
+#ifdef ENABLE_BIGINT
+    case Scalar::BigInt64:
+    case Scalar::BigUint64:
+        return BigInt::ValueToBigInt(cx, v, v);
+#endif
     default:
         return ToNumeric(cx, v);
     }
@@ -404,6 +454,18 @@ class TypedArrayObjectTemplate : public TypedArrayObject
             int32_t n = ToInt32(d);
             setIndex(tarray, index, NativeType(n));
         }
+    }
+
+    static void
+    setIndexValue(TypedArrayObject& tarray, uint32_t index, int64_t n)
+    {
+        setIndex(tarray, index, n);
+    }
+
+    static void
+    setIndexValue(TypedArrayObject& tarray, uint32_t index, uint64_t n)
+    {
+        setIndex(tarray, index, n);
     }
 
     static TypedArrayObject*
@@ -1767,6 +1829,30 @@ TypedArrayObjectTemplate<uint32_t>::getIndexValue(JSContext* cx, JSObject* tarra
     return NumberValue(val);
 }
 
+#ifdef ENABLE_BIGINT
+template<>
+Value
+TypedArrayObjectTemplate<int64_t>::getIndexValue(JSContext* cx, JSObject* tarray, uint32_t index)
+{
+    int64_t val = getIndex(tarray, index);
+    RootedBigInt res(cx, BigInt::FromInt64(cx, val));
+    if (!res)
+        return UndefinedValue();
+    return BigIntValue(res);
+}
+
+template<>
+Value
+TypedArrayObjectTemplate<uint64_t>::getIndexValue(JSContext* cx, JSObject* tarray, uint32_t index)
+{
+    uint64_t val = getIndex(tarray, index);
+    RootedBigInt res(cx, BigInt::FromUint64(cx, val));
+    if (!res)
+        return UndefinedValue();
+    return BigIntValue(res);
+}
+#endif
+
 template<>
 Value
 TypedArrayObjectTemplate<float>::getIndexValue(JSContext* cx, JSObject* tarray, uint32_t index)
@@ -1821,6 +1907,12 @@ TypedArrayObject::getElement(JSContext* cx, uint32_t index)
         return Int32Array::getIndexValue(cx, this, index);
       case Scalar::Uint32:
         return Uint32Array::getIndexValue(cx, this, index);
+#ifdef ENABLE_BIGINT
+      case Scalar::BigInt64:
+        return BigInt64Array::getIndexValue(cx, this, index);
+      case Scalar::BigUint64:
+        return BigUint64Array::getIndexValue(cx, this, index);
+#endif
       case Scalar::Float32:
         return Float32Array::getIndexValue(cx, this, index);
       case Scalar::Float64:
@@ -1875,6 +1967,26 @@ TypedArrayObject::setElement(JSContext* cx, TypedArrayObject& obj, uint32_t inde
       case Scalar::Uint32:
         Uint32Array::setIndexValue(obj, index, d);
         return true;
+#ifdef ENABLE_BIGINT
+      case Scalar::BigInt64:
+      {
+        RootedBigInt bi(cx, v.toBigInt());
+        int64_t n;
+        if (!BigInt::ToInt64(cx, bi, n))
+            return false;
+        BigInt64Array::setIndexValue(obj, index, n);
+        return true;
+      }
+      case Scalar::BigUint64:
+      {
+        RootedBigInt bi(cx, v.toBigInt());
+        uint64_t n;
+        if (!BigInt::ToUint64(cx, bi, n))
+            return false;
+        BigUint64Array::setIndexValue(obj, index, n);
+        return true;
+      }
+#endif
       case Scalar::Float32:
         Float32Array::setIndexValue(obj, index, d);
         return true;
@@ -1964,6 +2076,10 @@ IMPL_TYPED_ARRAY_JSAPI_CONSTRUCTORS(Int32, int32_t)
 IMPL_TYPED_ARRAY_JSAPI_CONSTRUCTORS(Uint32, uint32_t)
 IMPL_TYPED_ARRAY_JSAPI_CONSTRUCTORS(Float32, float)
 IMPL_TYPED_ARRAY_JSAPI_CONSTRUCTORS(Float64, double)
+#ifdef ENABLE_BIGINT
+IMPL_TYPED_ARRAY_JSAPI_CONSTRUCTORS(BigInt64, int64_t)
+IMPL_TYPED_ARRAY_JSAPI_CONSTRUCTORS(BigUint64, uint64_t)
+#endif
 
 #define IMPL_TYPED_ARRAY_COMBINED_UNWRAPPERS(Name, ExternalType, InternalType)              \
   JS_FRIEND_API(JSObject*) JS_GetObjectAs ## Name ## Array(JSObject* obj,                  \
@@ -1995,6 +2111,10 @@ IMPL_TYPED_ARRAY_COMBINED_UNWRAPPERS(Int32, int32_t, int32_t)
 IMPL_TYPED_ARRAY_COMBINED_UNWRAPPERS(Uint32, uint32_t, uint32_t)
 IMPL_TYPED_ARRAY_COMBINED_UNWRAPPERS(Float32, float, float)
 IMPL_TYPED_ARRAY_COMBINED_UNWRAPPERS(Float64, double, double)
+#ifdef ENABLE_BIGINT
+IMPL_TYPED_ARRAY_COMBINED_UNWRAPPERS(BigInt64, int64_t, int64_t)
+IMPL_TYPED_ARRAY_COMBINED_UNWRAPPERS(BigUint64, uint64_t, uint64_t)
+#endif
 
 static const ClassOps TypedArrayClassOps = {
     nullptr,                 /* addProperty */
@@ -2031,7 +2151,11 @@ static const JSPropertySpec static_prototype_properties[Scalar::MaxTypedArrayVie
     IMPL_TYPED_ARRAY_PROPERTIES(Uint32),
     IMPL_TYPED_ARRAY_PROPERTIES(Float32),
     IMPL_TYPED_ARRAY_PROPERTIES(Float64),
-    IMPL_TYPED_ARRAY_PROPERTIES(Uint8Clamped)
+    IMPL_TYPED_ARRAY_PROPERTIES(Uint8Clamped),
+#ifdef ENABLE_BIGINT
+    IMPL_TYPED_ARRAY_PROPERTIES(BigInt64),
+    IMPL_TYPED_ARRAY_PROPERTIES(BigUint64),
+#endif
 };
 
 #define IMPL_TYPED_ARRAY_CLASS_SPEC(_type)                                     \
@@ -2055,7 +2179,11 @@ static const ClassSpec TypedArrayObjectClassSpecs[Scalar::MaxTypedArrayViewType]
     IMPL_TYPED_ARRAY_CLASS_SPEC(Uint32),
     IMPL_TYPED_ARRAY_CLASS_SPEC(Float32),
     IMPL_TYPED_ARRAY_CLASS_SPEC(Float64),
-    IMPL_TYPED_ARRAY_CLASS_SPEC(Uint8Clamped)
+    IMPL_TYPED_ARRAY_CLASS_SPEC(Uint8Clamped),
+#ifdef ENABLE_BIGINT
+    IMPL_TYPED_ARRAY_CLASS_SPEC(BigInt64),
+    IMPL_TYPED_ARRAY_CLASS_SPEC(BigUint64),
+#endif
 };
 
 #define IMPL_TYPED_ARRAY_CLASS(_type)                                          \
@@ -2081,7 +2209,11 @@ const Class TypedArrayObject::classes[Scalar::MaxTypedArrayViewType] = {
     IMPL_TYPED_ARRAY_CLASS(Uint32),
     IMPL_TYPED_ARRAY_CLASS(Float32),
     IMPL_TYPED_ARRAY_CLASS(Float64),
-    IMPL_TYPED_ARRAY_CLASS(Uint8Clamped)
+    IMPL_TYPED_ARRAY_CLASS(Uint8Clamped),
+#ifdef ENABLE_BIGINT
+    IMPL_TYPED_ARRAY_CLASS(BigInt64),
+    IMPL_TYPED_ARRAY_CLASS(BigUint64)
+#endif
 };
 
 // The various typed array prototypes are supposed to 1) be normal objects,
@@ -2115,7 +2247,11 @@ const Class TypedArrayObject::protoClasses[Scalar::MaxTypedArrayViewType] = {
     IMPL_TYPED_ARRAY_PROTO_CLASS(Uint32),
     IMPL_TYPED_ARRAY_PROTO_CLASS(Float32),
     IMPL_TYPED_ARRAY_PROTO_CLASS(Float64),
-    IMPL_TYPED_ARRAY_PROTO_CLASS(Uint8Clamped)
+    IMPL_TYPED_ARRAY_PROTO_CLASS(Uint8Clamped),
+#ifdef ENABLE_BIGINT
+    IMPL_TYPED_ARRAY_PROTO_CLASS(BigInt64),
+    IMPL_TYPED_ARRAY_PROTO_CLASS(BigUint64)
+#endif
 };
 
 /* static */ bool
@@ -2140,6 +2276,12 @@ js::IsTypedArrayConstructor(HandleValue v, uint32_t type)
         return IsNativeFunction(v, Int32Array::class_constructor);
       case Scalar::Uint32:
         return IsNativeFunction(v, Uint32Array::class_constructor);
+#ifdef ENABLE_BIGINT
+      case Scalar::BigInt64:
+        return IsNativeFunction(v, BigInt64Array::class_constructor);
+      case Scalar::BigUint64:
+        return IsNativeFunction(v, BigUint64Array::class_constructor);
+#endif
       case Scalar::Float32:
         return IsNativeFunction(v, Float32Array::class_constructor);
       case Scalar::Float64:

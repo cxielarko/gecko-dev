@@ -698,6 +698,10 @@ GetClassForProtoKey(JSProtoKey key)
       case JSProto_Uint16Array:
       case JSProto_Int32Array:
       case JSProto_Uint32Array:
+#ifdef ENABLE_BIGINT
+      case JSProto_BigInt64Array:
+      case JSProto_BigUint64Array:
+#endif
       case JSProto_Float32Array:
       case JSProto_Float64Array:
       case JSProto_Uint8ClampedArray:

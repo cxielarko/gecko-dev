@@ -85,6 +85,20 @@ ConvertNumber<uint32_t, float>(float src)
     return JS::ToUint32(src);
 }
 
+template<>
+inline int64_t
+ConvertNumber<int64_t, float>(float src)
+{
+    return JS::ToInt64(src);
+}
+
+template<>
+inline uint64_t
+ConvertNumber<uint64_t, float>(float src)
+{
+    return JS::ToUint64(src);
+}
+
 template<> inline int8_t
 ConvertNumber<int8_t, double>(double src)
 {
@@ -133,6 +147,20 @@ ConvertNumber<uint32_t, double>(double src)
     return JS::ToUint32(src);
 }
 
+template<>
+inline int64_t
+ConvertNumber<int64_t, double>(double src)
+{
+    return JS::ToInt64(src);
+}
+
+template<>
+inline uint64_t
+ConvertNumber<uint64_t, double>(double src)
+{
+    return JS::ToUint64(src);
+}
+
 template<typename To, typename From>
 inline To
 ConvertNumber(From src)
@@ -151,6 +179,10 @@ template<> struct TypeIDOfType<int16_t> { static const Scalar::Type id = Scalar:
 template<> struct TypeIDOfType<uint16_t> { static const Scalar::Type id = Scalar::Uint16; };
 template<> struct TypeIDOfType<int32_t> { static const Scalar::Type id = Scalar::Int32; };
 template<> struct TypeIDOfType<uint32_t> { static const Scalar::Type id = Scalar::Uint32; };
+#ifdef ENABLE_BIGINT
+template<> struct TypeIDOfType<int64_t> { static const Scalar::Type id = Scalar::BigInt64; };
+template<> struct TypeIDOfType<uint64_t> { static const Scalar::Type id = Scalar::BigUint64; };
+#endif
 template<> struct TypeIDOfType<float> { static const Scalar::Type id = Scalar::Float32; };
 template<> struct TypeIDOfType<double> { static const Scalar::Type id = Scalar::Float64; };
 template<> struct TypeIDOfType<uint8_clamped> { static const Scalar::Type id = Scalar::Uint8Clamped; };
@@ -312,6 +344,20 @@ class ElementSpecific
                 Ops::store(dest++, ConvertNumber<T>(Ops::load(src++)));
             break;
           }
+#ifdef ENABLE_BIGINT
+          case Scalar::BigInt64: {
+            SharedMem<JS_VOLATILE_ARM int64_t*> src = data.cast<JS_VOLATILE_ARM int64_t*>();
+            for (uint32_t i = 0; i < count; ++i)
+                Ops::store(dest++, ConvertNumber<T>(Ops::load(src++)));
+            break;
+          }
+          case Scalar::BigUint64: {
+            SharedMem<JS_VOLATILE_ARM uint64_t*> src = data.cast<JS_VOLATILE_ARM uint64_t*>();
+            for (uint32_t i = 0; i < count; ++i)
+                Ops::store(dest++, ConvertNumber<T>(Ops::load(src++)));
+            break;
+          }
+#endif
           case Scalar::Float32: {
             SharedMem<JS_VOLATILE_ARM float*> src = data.cast<JS_VOLATILE_ARM float*>();
             for (uint32_t i = 0; i < count; ++i)
@@ -356,12 +402,12 @@ class ElementSpecific
 
             SharedMem<T*> dest = target->viewDataEither().template cast<T*>() + offset;
 
-            MOZ_ASSERT(!canConvertInfallibly(MagicValue(JS_ELEMENTS_HOLE)),
+            MOZ_ASSERT(!canConvertInfallibly(MagicValue(JS_ELEMENTS_HOLE), target->type()),
                        "the following loop must abort on holes");
 
             const Value* srcValues = source->as<NativeObject>().getDenseElements();
             for (; i < bound; i++) {
-                if (!canConvertInfallibly(srcValues[i]))
+                if (!canConvertInfallibly(srcValues[i], target->type()))
                     break;
                 Ops::store(dest + i, infallibleValueToNative(srcValues[i]));
             }
@@ -415,7 +461,7 @@ class ElementSpecific
 
         const Value* srcValues = source->getDenseElements();
         for (; i < len; i++) {
-            if (!canConvertInfallibly(srcValues[i]))
+            if (!canConvertInfallibly(srcValues[i], target->type()))
                 break;
             Ops::store(dest + i, infallibleValueToNative(srcValues[i]));
         }
@@ -525,6 +571,20 @@ class ElementSpecific
                 Ops::store(dest++, ConvertNumber<T>(*src++));
             break;
           }
+#ifdef ENABLE_BIGINT
+          case Scalar::BigInt64: {
+            int64_t* src = static_cast<int64_t*>(data);
+            for (uint32_t i = 0; i < len; ++i)
+                Ops::store(dest++, ConvertNumber<T>(*src++));
+            break;
+          }
+          case Scalar::BigUint64: {
+            uint64_t* src = static_cast<uint64_t*>(data);
+            for (uint32_t i = 0; i < len; ++i)
+                Ops::store(dest++, ConvertNumber<T>(*src++));
+            break;
+          }
+#endif
           case Scalar::Float32: {
             float* src = static_cast<float*>(data);
             for (uint32_t i = 0; i < len; ++i)
@@ -546,8 +606,12 @@ class ElementSpecific
     }
 
     static bool
-    canConvertInfallibly(const Value& v)
+    canConvertInfallibly(const Value& v, Scalar::Type type)
     {
+#ifdef ENABLE_BIGINT
+        if (type == Scalar::BigInt64 || type == Scalar::BigUint64)
+            return false;
+#endif
         return v.isNumber() || v.isBoolean() || v.isNull() || v.isUndefined();
     }
 
@@ -567,24 +631,7 @@ class ElementSpecific
         return TypeIsFloatingPoint<T>() ? T(JS::GenericNaN()) : T(0);
     }
 
-    static bool
-    valueToNative(JSContext* cx, HandleValue v, T* result)
-    {
-        MOZ_ASSERT(!v.isMagic());
-
-        if (MOZ_LIKELY(canConvertInfallibly(v))) {
-            *result = infallibleValueToNative(v);
-            return true;
-        }
-
-        double d;
-        MOZ_ASSERT(v.isString() || v.isObject() || v.isSymbol());
-        if (!(v.isString() ? StringToNumber(cx, v.toString(), &d) : ToNumber(cx, v, &d)))
-            return false;
-
-        *result = doubleToNative(d);
-        return true;
-    }
+    static bool valueToNative(JSContext* cx, HandleValue v, T* result);
 
     static T
     doubleToNative(double d)

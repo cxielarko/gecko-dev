@@ -316,8 +316,16 @@ function TypedArrayFill(value, start = 0, end = undefined) {
     // Step 3.
     var len = TypedArrayLength(O);
 
-    // Step 4.
-    value = ToNumber(value);
+#ifdef ENABLE_BIGINT
+    // Step 4-5 in the BigInt proposal.
+    var tag = _NameForTypedArray(this);
+    if (tag === "BigInt64Array" || tag === "BigUint64Array")
+        value = ToBigInt(value);
+    else
+        value = ToNumber(value);
+#else
+     value = ToNumber(value);
+#endif
 
     // Step 5.
     var relativeStart = ToInteger(start);
@@ -1105,8 +1113,9 @@ function TypedArraySome(callbackfn/*, thisArg*/) {
 // as opposed to the ordering in the spec.
 function TypedArrayCompare(x, y) {
     // Step 1.
-    assert(typeof x === "number" && typeof y === "number",
-           "x and y are not numbers.");
+    assert((typeof x === "number" && typeof y === "number") ||
+           (typeof x === "bigint" && typeof y === "bigint"),
+           "x and y are not numbers of the same type.");
 
     // Step 2 (Implemented in TypedArraySort).
 
@@ -1121,6 +1130,10 @@ function TypedArrayCompare(x, y) {
     // Steps 8-9.
     if (x === 0 && y === 0)
         return ((1 / x) > 0 ? 1 : 0) - ((1 / y) > 0 ? 1 : 0);
+
+    // Steps 8-9 for BigInt values.
+    if (x == 0 && y == 0)
+      return 0;
 
     // Steps 3-4.
     if (Number_isNaN(x))
